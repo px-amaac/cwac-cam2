@@ -19,7 +19,24 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
 
+/**
+ * Home of static utility methods used by the library and
+ * offered to developers in the spirit of togetherness.
+ */
 public class Utils {
+  /**
+   * Tests the app and the device to confirm that the code
+   * in this library should work. This is called automatically
+   * by other classes (e.g., CameraActivity), and so you probably
+   * do not need to call it yourself. But, hey, it's a public
+   * method, so call it if you feel like it.
+   *
+   * The method will throw an IllegalStateException if the
+   * environment is unsatisfactory, where the exception message
+   * will tell you what is wrong.
+   *
+   * @param ctxt any Context will do
+   */
   public static void validateEnvironment(Context ctxt) {
     if (Build.VERSION.SDK_INT<Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
       throw new IllegalStateException("App is running on device older than API Level 14");
