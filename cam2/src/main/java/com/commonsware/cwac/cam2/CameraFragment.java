@@ -48,6 +48,6 @@ public class CameraFragment extends Fragment {
    */
   @Override
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-    return(new View(getActivity()));
+    return(new CameraView(getActivity()));
   }
 }
