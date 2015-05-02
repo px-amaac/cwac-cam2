@@ -14,6 +14,7 @@
 
 package com.commonsware.cwac.cam2;
 
+import android.app.Activity;
 import android.app.Fragment;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -25,6 +26,18 @@ import android.view.ViewGroup;
  * you (or the user) to take a picture.
  */
 public class CameraFragment extends Fragment {
+  /**
+   * Interface that all hosting activities must implement.
+   */
+  public interface Contract {
+    /**
+     * Used by CameraFragment to indicate that the user has
+     * taken a photo, for activities that wish to take a specific
+     * action at this point (e.g., set a result and finish).
+     */
+    void completeRequest();
+  }
+
   /**
    * Standard fragment entry point.
    *
@@ -38,6 +51,21 @@ public class CameraFragment extends Fragment {
   }
 
   /**
+   * Standard lifecycle method, for when the fragment becomes
+   * attached to an activity. Used here to validate the contract.
+   *
+   * @param activity the hosting activity
+   */
+  @Override
+  public void onAttach(Activity activity) {
+    super.onAttach(activity);
+
+    if (!(activity instanceof Contract)) {
+      throw new IllegalArgumentException("Hosting activity must implement CameraFragment.Contract");
+    }
+  }
+
+  /**
    * Standard callback method to create the UI managed by
    * this fragment.
    *
@@ -48,6 +76,19 @@ public class CameraFragment extends Fragment {
    */
   @Override
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-    return(new CameraView(getActivity()));
+    CameraView cv=new CameraView(getActivity());
+
+    cv.setOnClickListener(new View.OnClickListener() {
+      @Override
+      public void onClick(View view) {
+        getContract().completeRequest();
+      }
+    });
+
+    return(cv);
+  }
+
+  private Contract getContract() {
+    return((Contract)getActivity());
   }
 }

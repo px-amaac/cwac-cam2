@@ -15,8 +15,11 @@
 package com.commonsware.cwac.cam2;
 
 import android.app.Activity;
+import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 
@@ -25,7 +28,8 @@ import android.provider.MediaStore;
  * protocol, in terms of extras and return data, as does
  * ACTION_IMAGE_CAPTURE.
  */
-public class CameraActivity extends Activity {
+public class CameraActivity extends Activity
+    implements CameraFragment.Contract {
   /**
    * The fragment implementing the bulk of the actual UI
    */
@@ -96,5 +100,40 @@ public class CameraActivity extends Activity {
           .add(android.R.id.content, frag)
           .commit();
     }
+
+    getOutputUri(); // TODO: do something with this
+  }
+
+  /**
+   * Used by CameraFragment to indicate that the user has
+   * taken a photo. While this is public, it is not really
+   * part of the API of this activity class.
+   */
+  public void completeRequest() {
+    setResult(RESULT_OK, new Intent()); // TODO: real result
+
+    finish();
+  }
+
+  private Uri getOutputUri() {
+    Uri output=null;
+
+    if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.JELLY_BEAN_MR1) {
+      ClipData clipData=getIntent().getClipData();
+
+      if (clipData!=null && clipData.getItemCount() > 0) {
+        output=clipData.getItemAt(0).getUri();
+      }
+    }
+
+    if (output==null) {
+      output=(Uri)getIntent().getParcelableExtra(MediaStore.EXTRA_OUTPUT);
+    }
+
+    if (output==null) {
+      // TODO: come up with one
+    }
+
+    return(output);
   }
 }
