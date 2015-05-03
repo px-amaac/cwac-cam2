@@ -80,14 +80,21 @@ public class CameraFragment extends Fragment {
 
     cv.setEngine(CameraEngine.buildInstance());
 
-    cv.setOnClickListener(new View.OnClickListener() {
+    cv.setOnLongClickListener(new View.OnLongClickListener() {
       @Override
-      public void onClick(View view) {
+      public boolean onLongClick(View view) {
         getContract().completeRequest();
+
+        return(true);
       }
     });
 
-    return(cv);
+    ViewGroup main=(ViewGroup)inflater.inflate(R.layout.cwac_cam2_fragment_main,
+                                                container, false);
+
+    main.addView(cv, 0);
+
+    return(main);
   }
 
   private Contract getContract() {
