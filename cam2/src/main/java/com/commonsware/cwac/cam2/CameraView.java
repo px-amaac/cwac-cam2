@@ -14,10 +14,12 @@
 
 package com.commonsware.cwac.cam2;
 
+import android.app.Activity;
 import android.content.Context;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.ViewGroup;
+import com.commonsware.cwac.cam2.util.Size;
 
 /**
  * Class responsible for rendering preview frames on the UI
@@ -29,13 +31,15 @@ public class CameraView extends ViewGroup {
    * The requested size of the preview frames, or null to just
    * use the size of the view itself
    */
-  private Size previewSize=null;
+  private Size previewSize;
 
   /**
    * The orientation of the preview frames, where 0 is the natural
    * orientation of the device
    */
   private int orientation=0;
+
+  private CameraEngine engine;
 
   /**
    * Constructor, used for creating instances from Java code.
@@ -98,6 +102,16 @@ public class CameraView extends ViewGroup {
     this.orientation=orientation;
   }
 
+  public CameraEngine getEngine() {
+    return(engine);
+  }
+
+  public void setEngine(CameraEngine engine) {
+    this.engine=engine;
+
+    addView(engine.buildPreviewView((Activity)getContext()));
+  }
+
   // based on CameraPreview.java from ApiDemos
 
   @Override
@@ -152,5 +166,25 @@ public class CameraView extends ViewGroup {
             (height + scaledChildHeight) / 2);
       }
     }
+  }
+
+
+  void previewCreated() {
+  }
+
+  void previewDestroyed() {
+  }
+
+  void previewReset(int width, int height) {
+  }
+
+  private void previewStopped() {
+  }
+
+  public void initPreview(int w, int h) {
+    initPreview(w, h, true);
+  }
+
+  public void initPreview(int w, int h, boolean firstRun) {
   }
 }

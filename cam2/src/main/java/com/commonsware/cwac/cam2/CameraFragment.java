@@ -78,6 +78,8 @@ public class CameraFragment extends Fragment {
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
     CameraView cv=new CameraView(getActivity());
 
+    cv.setEngine(CameraEngine.buildInstance());
+
     cv.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View view) {

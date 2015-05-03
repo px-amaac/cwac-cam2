@@ -12,7 +12,7 @@
  limitations under the License.
  */
 
-package com.commonsware.cwac.cam2;
+package com.commonsware.cwac.cam2.util;
 
 import android.Manifest;
 import android.content.Context;

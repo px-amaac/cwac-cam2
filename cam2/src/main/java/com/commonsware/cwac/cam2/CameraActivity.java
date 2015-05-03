@@ -22,6 +22,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import com.commonsware.cwac.cam2.util.Utils;
 
 /**
  * Stock activity for taking pictures. Supports the same
