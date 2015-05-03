@@ -1,73 +1,24 @@
+/***
+ Copyright (c) 2015 CommonsWare, LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License"); you may
+ not use this file except in compliance with the License. You may obtain
+ a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
+
 package com.commonsware.cwac.cam2.classic;
 
-import android.app.Activity;
-import android.graphics.SurfaceTexture;
-import android.view.TextureView;
-import android.view.View;
 import com.commonsware.cwac.cam2.CameraEngine;
 
+/**
+ * Implementation of a CameraEngine that supports the
+ * original android.hardware.Camera API.
+ */
 public class ClassicCameraEngine extends CameraEngine {
-  @Override
-  public View buildPreviewView(Activity host) {
-    return(new Preview(host).getWidget());
-  }
-
-  static class Preview implements TextureView.SurfaceTextureListener {
-    private TextureView widget=null;
-    private SurfaceTexture surface=null;
-
-    Preview(Activity host) {
-      widget=new TextureView(host);
-      widget.setSurfaceTextureListener(this);
-    }
-
-    @Override
-    public void onSurfaceTextureAvailable(SurfaceTexture surface,
-                                          int width, int height) {
-      this.surface=surface;
-
-//      cameraView.previewCreated();
-//      cameraView.initPreview(width, height);
-    }
-
-    @Override
-    public void onSurfaceTextureSizeChanged(SurfaceTexture surface,
-                                            int width, int height) {
-//      cameraView.previewReset(width, height);
-    }
-
-    @Override
-    public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-//      cameraView.previewDestroyed();
-
-      return (true);
-    }
-
-    @Override
-    public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-      // no-op
-    }
-
-/*
-    @Override
-    public void attach(Camera camera) throws IOException {
-      camera.setPreviewTexture(surface);
-    }
-
-    @Override
-    public void attach(MediaRecorder recorder) {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-        // no-op
-      }
-      else {
-        throw new IllegalStateException(
-            "Cannot use TextureView with MediaRecorder");
-      }
-    }
-*/
-
-    public View getWidget() {
-      return (widget);
-    }
-  }
 }
