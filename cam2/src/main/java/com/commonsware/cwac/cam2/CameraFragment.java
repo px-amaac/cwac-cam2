@@ -16,10 +16,13 @@ package com.commonsware.cwac.cam2;
 
 import android.app.Activity;
 import android.app.Fragment;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.ViewGroup;
+import com.commonsware.cwac.cam2.util.Utils;
 import com.github.polok.flipview.FlipView;
 import java.util.List;
 
@@ -95,8 +98,13 @@ public class CameraFragment extends Fragment {
       }
     });
 
-    ViewGroup main=(ViewGroup)inflater.inflate(R.layout.cwac_cam2_fragment_main,
-                                                container, false);
+    boolean isLegacy=ViewConfiguration.get(getActivity()).hasPermanentMenuKey();
+
+    int layoutId=isLegacy || Utils.isSystemBarOnBottom(getActivity())
+        ? R.layout.cwac_cam2_fragment_main
+        : R.layout.cwac_cam2_fragment_main_alt;
+
+    ViewGroup main=(ViewGroup)inflater.inflate(layoutId, container, false);
 
     main.addView(cv, 0);
 
