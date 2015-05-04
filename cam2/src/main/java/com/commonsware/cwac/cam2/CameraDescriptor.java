@@ -12,19 +12,7 @@
  limitations under the License.
  */
 
-package com.commonsware.cwac.cam2.demo;
+package com.commonsware.cwac.cam2;
 
-import android.app.Activity;
-import android.content.res.Configuration;
-import android.os.Bundle;
-import com.commonsware.cwac.cam2.CameraActivity;
-
-public class MainActivity extends Activity {
-  @Override
-  protected void onCreate(Bundle savedInstanceState) {
-    super.onCreate(savedInstanceState);
-
-    startActivity(CameraActivity.buildLaunchIntent(this));
-    finish();
-  }
+public interface CameraDescriptor {
 }

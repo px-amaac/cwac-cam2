@@ -1,7 +1,13 @@
 apply plugin: 'com.android.library'
 
+repositories {
+    mavenCentral() // required for testing-support-lib dependencies
+}
+
 dependencies {
     compile 'com.wunderlist:sliding-layer:1.1.1'
+    compile 'com.github.polok.flipview:library:1.0.0'
+    androidTestCompile 'com.android.support.test:testing-support-lib:0.1'
 }
 
 android {
@@ -11,6 +17,12 @@ android {
     defaultConfig {
         minSdkVersion 14
         targetSdkVersion 22
+        testApplicationId "com.commonsware.cwac.cam2.test"
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+
+    packagingOptions {
+        exclude 'LICENSE.txt' // required for no good reason...
     }
 }
 

@@ -20,6 +20,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import com.github.polok.flipview.FlipView;
 
 /**
  * Fragment for displaying a camera preview, with hooks to allow
@@ -78,14 +79,14 @@ public class CameraFragment extends Fragment {
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
     CameraView cv=new CameraView(getActivity());
 
-    cv.setEngine(CameraEngine.buildInstance());
+    cv.setEngine(CameraEngine.buildInstance(getActivity()));
 
     cv.setOnLongClickListener(new View.OnLongClickListener() {
       @Override
       public boolean onLongClick(View view) {
         getContract().completeRequest();
 
-        return(true);
+        return (true);
       }
     });
 
@@ -93,6 +94,8 @@ public class CameraFragment extends Fragment {
                                                 container, false);
 
     main.addView(cv, 0);
+
+    FlipView lens=(FlipView)main.findViewById(R.id.cwac_cam2_fragment_lens);
 
     return(main);
   }

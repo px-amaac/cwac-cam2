@@ -15,28 +15,42 @@
 package com.commonsware.cwac.cam2;
 
 import android.app.Activity;
+import android.content.Context;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
 import android.view.TextureView;
 import android.view.View;
 import com.commonsware.cwac.cam2.camera2.CameraTwoEngine;
 import com.commonsware.cwac.cam2.classic.ClassicCameraEngine;
+import java.util.List;
 
 /**
  * Base class for camera engines, which abstract out camera
  * functionality for different APIs (e.g., android.hardware.Camera,
  * android.hardware.camera2.*).
  */
-public class CameraEngine {
+abstract public class CameraEngine {
+  /**
+   * Returns a roster of the available cameras for this engine,
+   * or the cameras that match the supplied criteria,
+   * in the form of a collection of CameraDescriptor objects.
+   *
+   * @param criteria requirements for the matching cameras, or
+   *                 null to return all cameras
+   * @return roster of matching (or all) cameras
+   */
+  abstract public List<CameraDescriptor> getCameraDescriptors(CameraSelectionCriteria criteria);
+
   /**
    * Builds a CameraEngine instance based on the device's
    * API level.
    *
+   * @param ctxt any Context will do
    * @return a new CameraEngine instance
    */
-  public static CameraEngine buildInstance() {
+  public static CameraEngine buildInstance(Context ctxt) {
     if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.LOLLIPOP) {
-      return(new CameraTwoEngine());
+      return(new CameraTwoEngine(ctxt));
     }
 
     return(new ClassicCameraEngine());
