@@ -44,7 +44,7 @@ public class Utils {
 
     PackageManager pm=ctxt.getPackageManager();
 
-    if (!pm.hasSystemFeature(PackageManager.FEATURE_CAMERA)) {
+    if (!pm.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) {
       throw new IllegalStateException("App is running on device that lacks a camera");
     }
 

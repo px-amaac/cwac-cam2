@@ -21,6 +21,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import com.github.polok.flipview.FlipView;
+import java.util.List;
 
 /**
  * Fragment for displaying a camera preview, with hooks to allow
@@ -38,6 +39,10 @@ public class CameraFragment extends Fragment {
      */
     void completeRequest();
   }
+
+  private CameraEngine engine;
+  private CameraDescriptor backCamera;
+  private CameraDescriptor frontCamera;
 
   /**
    * Standard fragment entry point.
@@ -97,7 +102,49 @@ public class CameraFragment extends Fragment {
 
     FlipView lens=(FlipView)main.findViewById(R.id.cwac_cam2_fragment_lens);
 
+    if (backCamera==null || frontCamera==null) {
+      lens.setVisibility(View.GONE);
+    }
+
     return(main);
+  }
+
+  /**
+   * @return the engine being used by this fragment to access
+   * the camera(s) on the device
+   */
+  public CameraEngine getEngine() {
+    return(engine);
+  }
+
+  /**
+   * Setter for the engine. Must be called before onCreateView()
+   * is called, preferably shortly after constructing the
+   * fragment.
+   *
+   * @param engine the engine to be used by this fragment to access
+   * the camera(s) on the device
+   */
+  public void setEngine(CameraEngine engine) {
+    this.engine=engine;
+
+    CameraSelectionCriteria criteria=
+        new CameraSelectionCriteria.Builder()
+            .facing(CameraSelectionCriteria.Facing.FRONT).build();
+    List<CameraDescriptor> cameras=engine.getCameraDescriptors(criteria);
+
+    if (cameras.size()>0) {
+      frontCamera=cameras.get(0);
+    }
+
+    criteria=
+        new CameraSelectionCriteria.Builder()
+            .facing(CameraSelectionCriteria.Facing.BACK).build();
+    cameras=engine.getCameraDescriptors(criteria);
+
+    if (cameras.size()>0) {
+      backCamera=cameras.get(0);
+    }
   }
 
   private Contract getContract() {

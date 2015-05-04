@@ -96,6 +96,8 @@ public class CameraActivity extends Activity
 
     if (frag==null) {
       frag=new CameraFragment();
+      frag.setEngine(CameraEngine.buildInstance(this));
+
       getFragmentManager()
           .beginTransaction()
           .add(android.R.id.content, frag)
