@@ -12,19 +12,19 @@
  limitations under the License.
  */
 
-package com.commonsware.cwac.cam2;
+package com.commonsware.cwac.cam2.support;
 
 import android.app.Activity;
-import android.app.Fragment;
-import android.content.res.Configuration;
 import android.os.Bundle;
+import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
+import com.commonsware.cwac.cam2.CameraController;
+import com.commonsware.cwac.cam2.CameraView;
 import com.commonsware.cwac.cam2.util.Utils;
 import com.github.polok.flipview.FlipView;
-import java.util.List;
 
 /**
  * Fragment for displaying a camera preview, with hooks to allow
@@ -99,14 +99,14 @@ public class CameraFragment extends Fragment {
     boolean isLegacy=ViewConfiguration.get(getActivity()).hasPermanentMenuKey();
 
     int layoutId=isLegacy || Utils.isSystemBarOnBottom(getActivity())
-        ? R.layout.cwac_cam2_fragment_main
-        : R.layout.cwac_cam2_fragment_main_alt;
+        ? com.commonsware.cwac.cam2.R.layout.cwac_cam2_fragment_main
+        : com.commonsware.cwac.cam2.R.layout.cwac_cam2_fragment_main_alt;
 
     ViewGroup main=(ViewGroup)inflater.inflate(layoutId, container, false);
 
     main.addView(cv, 0);
 
-    FlipView lens=(FlipView)main.findViewById(R.id.cwac_cam2_fragment_lens);
+    FlipView lens=(FlipView)main.findViewById(com.commonsware.cwac.cam2.R.id.cwac_cam2_fragment_lens);
 
     if (!ctrl.hasBothCameras()) {
       lens.setVisibility(View.GONE);

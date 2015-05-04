@@ -12,9 +12,8 @@
  limitations under the License.
 */
 
-package com.commonsware.cwac.cam2;
+package com.commonsware.cwac.cam2.support;
 
-import android.app.Activity;
 import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
@@ -22,6 +21,9 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.support.v4.app.FragmentActivity;
+import com.commonsware.cwac.cam2.CameraController;
+import com.commonsware.cwac.cam2.CameraEngine;
 import com.commonsware.cwac.cam2.util.Utils;
 
 /**
@@ -29,7 +31,7 @@ import com.commonsware.cwac.cam2.util.Utils;
  * protocol, in terms of extras and return data, as does
  * ACTION_IMAGE_CAPTURE.
  */
-public class CameraActivity extends Activity
+public class CameraActivity extends FragmentActivity
     implements CameraFragment.Contract {
   /**
    * The fragment implementing the bulk of the actual UI
@@ -91,7 +93,7 @@ public class CameraActivity extends Activity
 
     Utils.validateEnvironment(this);
 
-    frag=(CameraFragment)getFragmentManager()
+    frag=(CameraFragment)getSupportFragmentManager()
                             .findFragmentById(android.R.id.content);
 
     if (frag==null) {
@@ -102,7 +104,7 @@ public class CameraActivity extends Activity
       ctrl.setEngine(CameraEngine.buildInstance(this));
       frag.setController(ctrl);
 
-      getFragmentManager()
+      getSupportFragmentManager()
           .beginTransaction()
           .add(android.R.id.content, frag)
           .commit();

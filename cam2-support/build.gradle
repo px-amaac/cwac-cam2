@@ -1,0 +1,24 @@
+apply plugin: 'com.android.application'
+
+repositories {
+    maven {
+        url "https://repo.commonsware.com.s3.amazonaws.com"
+    }
+}
+
+dependencies {
+    // debugCompile project(':cam2')
+    compile project(':cam2')
+    // releaseCompile 'com.commonsware.cwac:cam2:0.6.+'
+    compile 'com.android.support:support-v13:22.1.1'
+}
+
+android {
+    compileSdkVersion 22
+    buildToolsVersion "22.0.1"
+
+    defaultConfig {
+        minSdkVersion 14
+        targetSdkVersion 22
+    }
+}
