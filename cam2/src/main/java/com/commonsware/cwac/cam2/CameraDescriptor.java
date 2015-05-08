@@ -14,5 +14,11 @@
 
 package com.commonsware.cwac.cam2;
 
+/**
+ * A representation of a camera. Specific camera engines will
+ * have their own descriptors, which they can use for tracking
+ * IDs or other information about the camera. From the standpoint
+ * of the public API, a descriptor should be fairly opaque.
+ */
 public interface CameraDescriptor {
 }

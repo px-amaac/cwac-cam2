@@ -18,10 +18,12 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
+import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import com.commonsware.cwac.cam2.camera2.CameraTwoEngine;
 import com.commonsware.cwac.cam2.classic.ClassicCameraEngine;
+import com.commonsware.cwac.cam2.util.Size;
 import java.util.List;
 
 /**
@@ -42,6 +44,36 @@ abstract public class CameraEngine {
   abstract public List<CameraDescriptor> getCameraDescriptors(CameraSelectionCriteria criteria);
 
   /**
+   * Call this when the engine is to be shut down permanently.
+   * A new engine instance should be created if the camera is
+   * to be used again in the future.
+   */
+  abstract public void destroy();
+
+  /**
+   * Find out what preview sizes the indicated camera supports
+   *
+   * @param camera the CameraDescriptor of the camera of interest
+   * @return the available preview sizes, in no particular order
+   */
+  abstract public List<Size> getAvailablePreviewSizes(CameraDescriptor camera);
+
+  /**
+   * Open the requested camera and show a preview on the supplied
+   * surface.
+   *
+   * @param rawCamera the CameraDescriptor of the camera of interest
+   * @param surface the surface for the previews, expected to have
+   *                been created from a TextureView
+   */
+  abstract public void open(CameraDescriptor rawCamera, Surface surface);
+
+  /**
+   * Close the open camera, if any.
+   */
+  abstract public void close();
+
+  /**
    * Builds a CameraEngine instance based on the device's
    * API level.
    *
@@ -54,83 +86,5 @@ abstract public class CameraEngine {
     }
 
     return(new ClassicCameraEngine());
-  }
-
-  /**
-   * Creates the View to use for camera previews; will be used
-   * by CameraView for its main content.
-   *
-   * @param host the activity hosting the preview View
-   * @return the preview View
-   */
-  public View buildPreviewView(Activity host) {
-    return(new Preview(host).getWidget());
-  }
-
-  /**
-   * A stock implementation of a camera preview manager,
-   * based on a TextureView.
-   */
-  private static class Preview implements TextureView.SurfaceTextureListener {
-    private TextureView widget=null;
-    private SurfaceTexture surface=null;
-
-    Preview(Activity host) {
-      widget=new TextureView(host);
-      widget.setSurfaceTextureListener(this);
-    }
-
-    @Override
-    public void onSurfaceTextureAvailable(SurfaceTexture surface,
-                                          int width, int height) {
-      this.surface=surface;
-
-//      cameraView.previewCreated();
-//      cameraView.initPreview(width, height);
-    }
-
-    @Override
-    public void onSurfaceTextureSizeChanged(SurfaceTexture surface,
-                                            int width, int height) {
-//      cameraView.previewReset(width, height);
-    }
-
-    @Override
-    public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-//      cameraView.previewDestroyed();
-
-      return (true);
-    }
-
-    @Override
-    public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-      // no-op
-    }
-
-/*
-    @Override
-    public void attach(Camera camera) throws IOException {
-      camera.setPreviewTexture(surface);
-    }
-
-    @Override
-    public void attach(MediaRecorder recorder) {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-        // no-op
-      }
-      else {
-        throw new IllegalStateException(
-            "Cannot use TextureView with MediaRecorder");
-      }
-    }
-*/
-
-    /**
-     * @return the View that is where previews will be rendered
-     * by the engine
-     */
-    public View getWidget() {
-      return (widget);
-    }
   }
 }

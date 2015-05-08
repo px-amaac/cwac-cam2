@@ -14,25 +14,22 @@
 
 package com.commonsware.cwac.cam2;
 
-import android.app.Activity;
-import android.app.Fragment;
-import android.os.Bundle;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewConfiguration;
-import android.view.ViewGroup;
-import com.commonsware.cwac.cam2.util.Utils;
-import com.github.polok.flipview.FlipView;
+import android.graphics.SurfaceTexture;
+import android.os.Build;
+import android.view.Surface;
+import com.commonsware.cwac.cam2.util.Size;
 import java.util.List;
 
 /**
  * Controller for camera-related functions, designed to be used
  * by CameraFragment or the equivalent.
  */
-public class CameraController {
+public class CameraController implements CameraView.StateCallback {
   private CameraEngine engine;
   private CameraDescriptor backCamera;
   private CameraDescriptor frontCamera;
+  private CameraView cv;
+  private Size previewSize;
 
   /**
    * @return the engine being used by this fragment to access
@@ -78,5 +75,121 @@ public class CameraController {
    */
   public boolean hasBothCameras() {
     return(frontCamera!=null && backCamera!=null);
+  }
+
+  /**
+   * Call this from onStart() of an activity or fragment, or from
+   * an equivalent point in time. If the CameraView is ready,
+   * the preview should begin; otherwise, the preview will
+   * begin after the CameraView is ready.
+   */
+  public void start() {
+    if (cv.isAvailable()) {
+      open();
+    }
+  }
+
+  /**
+   * Call this from onStop() of an activity or fragment, or
+   * from an equivalent point in time, to indicate that you want
+   * the camera preview to stop.
+   */
+  public void stop() {
+    engine.close();
+  }
+
+  /**
+   * Call this from onDestroy() of an activity or fragment,
+   * or from an equivalent point in time, to tear down the
+   * entire controller and engine. A fresh controller should
+   * be created if you want to use the camera again in the future.
+   */
+  public void destroy() {
+    if (engine!=null) {
+      engine.destroy();
+    }
+  }
+
+  /**
+   * Setter method for the CameraView that this controller controls
+   *
+   * @param cv a CameraView
+   */
+  public void setCameraView(CameraView cv) {
+    this.cv=cv;
+    cv.setStateCallback(this);
+  }
+
+  /**
+   * Public because Java interfaces are intrinsically public.
+   * This method is not part of the class' API and should not
+   * be used by third-party developers.
+   *
+   * @param cv the CameraView that is now ready
+   */
+  @Override
+  public void onReady(CameraView cv) {
+    open();
+  }
+
+  /**
+   * Public because Java interfaces are intrinsically public.
+   * This method is not part of the class' API and should not
+   * be used by third-party developers.
+   *
+   * @param cv the CameraView that is now destroyed
+   */
+  @Override
+  public void onDestroyed(CameraView cv) {
+    stop();
+  }
+
+  private void open() {
+    if (previewSize==null) {
+      choosePreviewSize();
+    }
+
+    SurfaceTexture texture=cv.getSurfaceTexture();
+
+    if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.JELLY_BEAN_MR1) {
+      texture.setDefaultBufferSize(cv.getWidth(), cv.getHeight());
+    }
+
+    engine.open(backCamera, new Surface(texture));
+
+    // TODO: support other cameras
+  }
+
+  private void choosePreviewSize() {
+    List<Size> sizes=engine.getAvailablePreviewSizes(backCamera);
+    // TODO: support other cameras
+    // TODO: optional limit preview to same aspect ratio as chosen picture size
+
+    Size largest=null;
+    long currentLargestArea=0;
+    Size smallestBiggerThanPreview=null;
+    long currentSmallestArea=Integer.MAX_VALUE;
+
+    for (Size size : sizes) {
+      long currentArea=size.getWidth()*size.getHeight();
+
+      if (largest==null || size.getWidth()*size.getHeight()>currentLargestArea) {
+        largest=size;
+        currentLargestArea=currentArea;
+      }
+
+      if (size.getWidth()>=cv.getWidth() && size.getHeight()>=cv.getHeight()) {
+        if (smallestBiggerThanPreview==null || currentArea<currentSmallestArea) {
+          smallestBiggerThanPreview=size;
+          currentSmallestArea=currentArea;
+        }
+      }
+    }
+
+    previewSize=(smallestBiggerThanPreview==null
+        ? largest
+        : smallestBiggerThanPreview);
+
+    cv.setPreviewSize(previewSize);
   }
 }

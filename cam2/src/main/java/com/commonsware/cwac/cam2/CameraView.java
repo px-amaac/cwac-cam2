@@ -16,9 +16,12 @@ package com.commonsware.cwac.cam2;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Matrix;
+import android.graphics.RectF;
+import android.graphics.SurfaceTexture;
 import android.util.AttributeSet;
-import android.view.View;
-import android.view.ViewGroup;
+import android.view.Surface;
+import android.view.TextureView;
 import com.commonsware.cwac.cam2.util.Size;
 
 /**
@@ -26,7 +29,12 @@ import com.commonsware.cwac.cam2.util.Size;
  * as a View for the user to see and interact with. Also handles
  * maintaining aspect ratios and dealing with full-bleed previews.
  */
-public class CameraView extends ViewGroup {
+public class CameraView extends TextureView implements TextureView.SurfaceTextureListener {
+  interface StateCallback {
+    void onReady(CameraView cv);
+    void onDestroyed(CameraView cv);
+  }
+
   /**
    * The requested size of the preview frames, or null to just
    * use the size of the view itself
@@ -40,6 +48,7 @@ public class CameraView extends ViewGroup {
   private int orientation=0;
 
   private CameraEngine engine;
+  private StateCallback stateCallback;
 
   /**
    * Constructor, used for creating instances from Java code.
@@ -47,7 +56,8 @@ public class CameraView extends ViewGroup {
    * @param context the Activity that will host this View
    */
   public CameraView(Context context) {
-    this(context, null);
+    super(context, null);
+    initListener();
   }
 
   /**
@@ -57,7 +67,8 @@ public class CameraView extends ViewGroup {
    * @param attrs the parsed attributes from the layout resource tag
    */
   public CameraView(Context context, AttributeSet attrs) {
-    this(context, attrs, 0);
+    super(context, attrs, 0);
+    initListener();
   }
 
   /**
@@ -72,6 +83,7 @@ public class CameraView extends ViewGroup {
    */
   public CameraView(Context context, AttributeSet attrs, int defStyle) {
     super(context, attrs, defStyle);
+    initListener();
   }
 
   /**
@@ -86,6 +98,8 @@ public class CameraView extends ViewGroup {
    */
   public void setPreviewSize(Size previewSize) {
     this.previewSize=previewSize;
+
+    enterTheMatrix();
   }
 
   /**
@@ -102,73 +116,57 @@ public class CameraView extends ViewGroup {
     this.orientation=orientation;
   }
 
+  public void setStateCallback(StateCallback cb) {
+    stateCallback=cb;
+  }
+
   public CameraEngine getEngine() {
     return(engine);
   }
 
   public void setEngine(CameraEngine engine) {
     this.engine=engine;
-
-    addView(engine.buildPreviewView((Activity)getContext()));
   }
-
-  // based on CameraPreview.java from ApiDemos
 
   @Override
   protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+    super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+
     final int width=
         resolveSize(getSuggestedMinimumWidth(), widthMeasureSpec);
     final int height=
         resolveSize(getSuggestedMinimumHeight(), heightMeasureSpec);
-    setMeasuredDimension(width, height);
-  }
 
-  // based on CameraPreview.java from ApiDemos
+    int previewWidth=width;
+    int previewHeight=height;
 
-  @Override
-  protected void onLayout(boolean changed, int l, int t, int r, int b) {
-    if (changed && getChildCount() > 0) {
-      final View child=getChildAt(0);
-      final int width=r - l;
-      final int height=b - t;
-      int previewWidth=width;
-      int previewHeight=height;
+    // handle orientation
 
-      // handle orientation
-
-      if (previewSize != null) {
-        if (orientation == 90 || orientation == 270) {
-          previewWidth=previewSize.getHeight();
-          previewHeight=previewSize.getWidth();
-        }
-        else {
-          previewWidth=previewSize.getWidth();
-          previewHeight=previewSize.getHeight();
-        }
-      }
-
-      boolean useFirstStrategy=
-          (width * previewHeight > height * previewWidth);
-      // boolean useFullBleed=getHost().useFullBleedPreview();
-      boolean useFullBleed=true;
-
-      if ((useFirstStrategy && !useFullBleed)
-          || (!useFirstStrategy && useFullBleed)) {
-        final int scaledChildWidth=
-            previewWidth * height / previewHeight;
-        child.layout((width - scaledChildWidth) / 2, 0,
-            (width + scaledChildWidth) / 2, height);
+    if (previewSize != null) {
+      if (orientation == 90 || orientation == 270) {
+        previewWidth=previewSize.getHeight();
+        previewHeight=previewSize.getWidth();
       }
       else {
-        final int scaledChildHeight=
-            previewHeight * width / previewWidth;
-        child.layout(0, (height - scaledChildHeight) / 2, width,
-            (height + scaledChildHeight) / 2);
+        previewWidth=previewSize.getWidth();
+        previewHeight=previewSize.getHeight();
       }
+    }
+
+    boolean useFirstStrategy=
+        (width * previewHeight > height * previewWidth);
+    boolean useFullBleed=true;  // TODO: configurable?
+
+    if ((useFirstStrategy && !useFullBleed)
+        || (!useFirstStrategy && useFullBleed)) {
+      setMeasuredDimension(previewWidth * height / previewHeight, height);
+    }
+    else {
+      setMeasuredDimension(width, previewHeight * width / previewWidth);
     }
   }
 
-
+/*
   void previewCreated() {
   }
 
@@ -186,5 +184,58 @@ public class CameraView extends ViewGroup {
   }
 
   public void initPreview(int w, int h, boolean firstRun) {
+  }
+*/
+
+  private void initListener() {
+    setSurfaceTextureListener(this);
+  }
+
+  @Override
+  public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
+    if (stateCallback !=null) {
+      stateCallback.onReady(this);
+    }
+  }
+
+  @Override
+  public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int i, int i1) {
+    enterTheMatrix();
+  }
+
+  @Override
+  public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+    if (stateCallback !=null) {
+      stateCallback.onDestroyed(this);
+    }
+
+    return(false);
+  }
+
+  @Override
+  public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+
+  }
+
+  // inspired by https://github.com/googlesamples/android-Camera2Basic/blob/master/Application/src/main/java/com/example/android/camera2basic/Camera2BasicFragment.java
+
+  private void enterTheMatrix() {
+    int rotation=((Activity)getContext()).getWindowManager().getDefaultDisplay().getRotation();
+
+    if (Surface.ROTATION_90==rotation || Surface.ROTATION_270==rotation) {
+      Matrix matrix=new Matrix();
+      RectF myRect=new RectF(0, 0, getWidth(), getHeight());
+      RectF previewRect=new RectF(0, 0, previewSize.getHeight(), previewSize.getWidth());
+      float cX=myRect.centerX();
+      float cY=myRect.centerY();
+      float scale=Math.max((float)getHeight() / previewSize.getHeight(),
+          (float)getWidth() / previewSize.getWidth());
+
+      previewRect.offset(cX - previewRect.centerX(), cY - previewRect.centerY());
+      matrix.setRectToRect(myRect, previewRect, Matrix.ScaleToFit.FILL);
+      matrix.postScale(scale, scale, cX, cY);
+      matrix.postRotate(90*(rotation-2), cX, cY);
+      setTransform(matrix);
+    }
   }
 }

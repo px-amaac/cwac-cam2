@@ -15,9 +15,11 @@
 package com.commonsware.cwac.cam2.classic;
 
 import android.hardware.Camera;
+import android.view.Surface;
 import com.commonsware.cwac.cam2.CameraDescriptor;
 import com.commonsware.cwac.cam2.CameraEngine;
 import com.commonsware.cwac.cam2.CameraSelectionCriteria;
+import com.commonsware.cwac.cam2.util.Size;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,6 +42,27 @@ public class ClassicCameraEngine extends CameraEngine {
     }
 
     return(result);
+  }
+
+  @Override
+  public void close() {
+
+  }
+
+  @Override
+  public void destroy() {
+
+  }
+
+  @Override
+  public List<Size> getAvailablePreviewSizes(CameraDescriptor camera) {
+    // TODO: for realz
+    return(new ArrayList<Size>());
+  }
+
+  @Override
+  public void open(CameraDescriptor rawCamera, Surface surface) {
+    // TODO: for realz
   }
 
   private boolean isMatch(int cameraId, CameraSelectionCriteria criteria) {

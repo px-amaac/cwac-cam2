@@ -31,9 +31,6 @@ import com.commonsware.cwac.cam2.util.Utils;
  */
 public class CameraActivity extends Activity
     implements CameraFragment.Contract {
-  /**
-   * The fragment implementing the bulk of the actual UI
-   */
   private CameraFragment frag;
 
   /**

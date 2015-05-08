@@ -14,28 +14,60 @@
 
 package com.commonsware.cwac.cam2;
 
+/**
+ * Representation of criteria used to select a camera from
+ * available cameras on the device. Used with CameraEngine
+ * for finding a subset of interesting cameras.
+ */
 public class CameraSelectionCriteria {
   private Facing facing;
 
+  /**
+   * Getter method for the facing value, indicating if we
+   * want the camera to be front-facing, back-facing, or
+   * any direction.
+   *
+   * @return the facing value
+   */
   public Facing getFacing() {
     return(facing);
   }
 
+  /**
+   * Class to create instances of CameraSelectionCriteria via
+   * a fluent, builder-style API.
+   */
   public static class Builder {
     final private CameraSelectionCriteria criteria=new CameraSelectionCriteria();
 
+    /**
+     * Setter for the facing value, indicating if we
+     * want the camera to be front-facing, back-facing, or
+     * any direction.
+     *
+     * @param facing the facing value
+     * @return the builder, for chained calls
+     */
     public Builder facing(Facing facing) {
       criteria.facing=facing;
 
       return(this);
     }
 
+    /**
+     * Returns the fabricated criteria
+     *
+     * @return the criteria defined via calls on the builder
+     */
     public CameraSelectionCriteria build() {
       return(criteria);
     }
   }
 
-  public static enum Facing {
+  /**
+   * Possible values for the facing property
+   */
+  public enum Facing {
     FRONT, BACK, ANY;
   }
 }

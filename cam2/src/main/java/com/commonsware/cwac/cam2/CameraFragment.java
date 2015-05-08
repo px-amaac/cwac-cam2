@@ -73,6 +73,46 @@ public class CameraFragment extends Fragment {
   }
 
   /**
+   * Standard lifecycle method, for when the fragment moves into
+   * the started state. Passed along to the CameraController.
+   */
+  @Override
+  public void onStart() {
+    super.onStart();
+
+    if (ctrl!=null) {
+      ctrl.start();
+    }
+  }
+
+  /**
+   * Standard lifecycle method, for when the fragment moves into
+   * the stopped state. Passed along to the CameraController.
+   */
+  @Override
+  public void onStop() {
+    if (ctrl!=null) {
+      ctrl.stop();
+    }
+
+    super.onStop();
+  }
+
+  /**
+   * Standard lifecycle method, for when the fragment is utterly,
+   * ruthlessly destroyed. Passed along to the CameraController,
+   * because why should the fragment have all the fun?
+   */
+  @Override
+  public void onDestroy() {
+    if (ctrl!=null) {
+      ctrl.destroy();
+    }
+
+    super.onDestroy();
+  }
+
+  /**
    * Standard callback method to create the UI managed by
    * this fragment.
    *
@@ -86,6 +126,7 @@ public class CameraFragment extends Fragment {
     CameraView cv=new CameraView(getActivity());
 
     cv.setEngine(ctrl.getEngine());
+    ctrl.setCameraView(cv);
 
     cv.setOnLongClickListener(new View.OnLongClickListener() {
       @Override

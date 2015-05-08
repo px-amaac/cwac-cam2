@@ -16,15 +16,26 @@ package com.commonsware.cwac.cam2.camera2;
 
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
-import android.os.Build;
+import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.params.StreamConfigurationMap;
+import android.os.*;
+import android.util.Log;
+import android.view.Surface;
 import com.commonsware.cwac.cam2.CameraDescriptor;
 import com.commonsware.cwac.cam2.CameraEngine;
 import com.commonsware.cwac.cam2.CameraSelectionCriteria;
+import com.commonsware.cwac.cam2.util.Size;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Implementation of a CameraEngine that supports the
@@ -33,6 +44,12 @@ import java.util.List;
 @TargetApi(Build.VERSION_CODES.LOLLIPOP)
 public class CameraTwoEngine extends CameraEngine {
   private CameraManager mgr;
+  final private HandlerThread handlerThread=new HandlerThread(getClass().getSimpleName(),
+      android.os.Process.THREAD_PRIORITY_BACKGROUND);
+  final private Handler handler;
+  final private Semaphore lock=new Semaphore(1);
+  private CameraDevice cameraDevice=null;
+  private CameraCaptureSession session=null;
 
   /**
    * Standard constructor
@@ -43,6 +60,12 @@ public class CameraTwoEngine extends CameraEngine {
     mgr=(CameraManager)ctxt.
                         getApplicationContext().
                         getSystemService(Context.CAMERA_SERVICE);
+    handlerThread.start();
+    handler=new Handler(handlerThread.getLooper());
+  }
+
+  public void destroy() {
+    handlerThread.quitSafely();
   }
 
   /**
@@ -65,6 +88,73 @@ public class CameraTwoEngine extends CameraEngine {
     return(result);
   }
 
+  @Override
+  public void open(CameraDescriptor rawCamera, Surface surface) {
+    Descriptor camera=(Descriptor)rawCamera;
+
+    try {
+      if (!lock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
+        throw new RuntimeException("Time out waiting to lock camera opening.");
+      }
+
+      mgr.openCamera(camera.getId(),
+          new InitPreviewTransaction(camera, surface),
+          handler);
+    }
+    catch (CameraAccessException e) {
+      throw new IllegalStateException("Exception opening camera", e);
+    }
+    catch (InterruptedException e) {
+      throw new IllegalStateException("Interrupted during camera opening", e);
+    }
+  }
+
+  @Override
+  public void close() {
+    try {
+      lock.acquire();
+
+      if (session!=null) {
+        session.close();
+        session=null;
+      }
+
+      if (cameraDevice!=null) {
+        cameraDevice.close();
+        cameraDevice=null;
+      }
+
+      // TODO: image reader close
+    }
+    catch (InterruptedException e) {
+      throw new IllegalStateException("Interrupted during camera closing", e);
+    }
+    finally {
+      lock.release();
+    }
+  }
+
+  @Override
+  public List<Size> getAvailablePreviewSizes(CameraDescriptor rawCamera) {
+    ArrayList<Size> result=new ArrayList<Size>();
+    Descriptor camera=(Descriptor)rawCamera;
+
+    try {
+      CameraCharacteristics c=mgr.getCameraCharacteristics(camera.getId());
+      StreamConfigurationMap map=c.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+      android.util.Size[] rawSizes=map.getOutputSizes(SurfaceTexture.class);
+
+      for (android.util.Size size : rawSizes) {
+        result.add(new Size(size.getWidth(), size.getHeight()));
+      }
+    }
+    catch (CameraAccessException e) {
+      throw new IllegalStateException("Exception getting preview sizes", e);
+    }
+
+    return(result);
+  }
+
   private boolean isMatch(String cameraId, CameraSelectionCriteria criteria)
       throws CameraAccessException {
     boolean result=true;
@@ -82,5 +172,85 @@ public class CameraTwoEngine extends CameraEngine {
     }
 
     return(result);
+  }
+
+  private class InitPreviewTransaction extends CameraDevice.StateCallback {
+    private final Descriptor camera;
+    private final Surface surface;
+
+    InitPreviewTransaction(Descriptor camera, Surface surface) {
+      this.camera=camera;
+      this.surface=surface;
+    }
+
+    @Override
+    public void onOpened(CameraDevice cameraDevice) {
+      lock.release();
+      CameraTwoEngine.this.cameraDevice=cameraDevice;
+      camera.setDevice(cameraDevice);
+
+      try {
+        cameraDevice.createCaptureSession(Collections.singletonList(surface),
+            new StartPreviewTransaction(surface), handler);
+      }
+      catch (CameraAccessException e) {
+        Log.e(getClass().getSimpleName(), "Exception creating capture session", e);
+        // TODO: raise event, replacing this
+      }
+    }
+
+    @Override
+    public void onDisconnected(CameraDevice cameraDevice) {
+      lock.release();
+      cameraDevice.close();
+    }
+
+    @Override
+    public void onError(CameraDevice cameraDevice, int i) {
+      lock.release();
+      cameraDevice.close();
+      // TODO: raise event
+    }
+
+    @Override
+    public void onClosed(CameraDevice camera) {
+      super.onClosed(camera);
+
+      // TODO: raise event??
+    }
+  }
+
+  private class StartPreviewTransaction extends CameraCaptureSession.StateCallback {
+    private final Surface surface;
+
+    StartPreviewTransaction(Surface surface) {
+      this.surface=surface;
+    }
+
+    @Override
+    public void onConfigured(CameraCaptureSession session) {
+      try {
+        CameraTwoEngine.this.session=session;
+        CaptureRequest.Builder b=session.getDevice().createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+
+        b.addTarget(surface);
+        b.set(CaptureRequest.CONTROL_AF_MODE,
+            CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+        b.set(CaptureRequest.CONTROL_AE_MODE,
+            CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
+        // TODO: offer other flash support
+
+        session.setRepeatingRequest(b.build(), null, handler);
+      }
+      catch (CameraAccessException e) {
+        Log.e(getClass().getSimpleName(), "Exception creating capture request", e);
+        // TODO: raise event, replacing this
+      }
+    }
+
+    @Override
+    public void onConfigureFailed(CameraCaptureSession session) {
+      // TODO: raise event
+    }
   }
 }
