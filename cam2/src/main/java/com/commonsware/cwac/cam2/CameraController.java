@@ -95,7 +95,9 @@ public class CameraController implements CameraView.StateCallback {
    * the camera preview to stop.
    */
   public void stop() {
-    engine.close();
+    engine.close(backCamera);
+
+    // TODO: support multiple cameras
   }
 
   /**

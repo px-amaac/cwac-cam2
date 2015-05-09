@@ -45,7 +45,7 @@ public class ClassicCameraEngine extends CameraEngine {
   }
 
   @Override
-  public void close() {
+  public void close(CameraDescriptor rawCamera) {
 
   }
 

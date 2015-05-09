@@ -69,9 +69,11 @@ abstract public class CameraEngine {
   abstract public void open(CameraDescriptor rawCamera, Surface surface);
 
   /**
-   * Close the open camera, if any.
+   * Close the open camera
+   *
+   * @param rawCamera the CameraDescriptor of the camera of interest
    */
-  abstract public void close();
+  abstract public void close(CameraDescriptor rawCamera);
 
   /**
    * Builds a CameraEngine instance based on the device's

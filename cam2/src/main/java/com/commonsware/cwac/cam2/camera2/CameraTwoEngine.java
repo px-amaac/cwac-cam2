@@ -88,6 +88,9 @@ public class CameraTwoEngine extends CameraEngine {
     return(result);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void open(CameraDescriptor rawCamera, Surface surface) {
     Descriptor camera=(Descriptor)rawCamera;
@@ -109,8 +112,11 @@ public class CameraTwoEngine extends CameraEngine {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
-  public void close() {
+  public void close(CameraDescriptor rawCamera) {
     try {
       lock.acquire();
 
@@ -124,6 +130,10 @@ public class CameraTwoEngine extends CameraEngine {
         cameraDevice=null;
       }
 
+      Descriptor camera=(Descriptor)rawCamera;
+
+      camera.setDevice(null);
+
       // TODO: image reader close
     }
     catch (InterruptedException e) {
@@ -134,6 +144,9 @@ public class CameraTwoEngine extends CameraEngine {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public List<Size> getAvailablePreviewSizes(CameraDescriptor rawCamera) {
     ArrayList<Size> result=new ArrayList<Size>();
