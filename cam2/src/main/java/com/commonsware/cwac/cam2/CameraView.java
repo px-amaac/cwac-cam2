@@ -166,27 +166,6 @@ public class CameraView extends TextureView implements TextureView.SurfaceTextur
     }
   }
 
-/*
-  void previewCreated() {
-  }
-
-  void previewDestroyed() {
-  }
-
-  void previewReset(int width, int height) {
-  }
-
-  private void previewStopped() {
-  }
-
-  public void initPreview(int w, int h) {
-    initPreview(w, h, true);
-  }
-
-  public void initPreview(int w, int h, boolean firstRun) {
-  }
-*/
-
   private void initListener() {
     setSurfaceTextureListener(this);
   }

@@ -63,10 +63,12 @@ abstract public class CameraEngine {
    * surface.
    *
    * @param rawCamera the CameraDescriptor of the camera of interest
-   * @param surface the surface for the previews, expected to have
-   *                been created from a TextureView
+   * @param texture the preview surface
+   * @param previewSize size of the requested preview
    */
-  abstract public void open(CameraDescriptor rawCamera, Surface surface);
+  abstract public void open(CameraDescriptor rawCamera,
+                            SurfaceTexture texture,
+                            Size previewSize);
 
   /**
    * Close the open camera

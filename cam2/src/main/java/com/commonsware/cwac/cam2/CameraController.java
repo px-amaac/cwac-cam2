@@ -157,7 +157,7 @@ public class CameraController implements CameraView.StateCallback {
       texture.setDefaultBufferSize(cv.getWidth(), cv.getHeight());
     }
 
-    engine.open(backCamera, new Surface(texture));
+    engine.open(backCamera, texture, previewSize);
 
     // TODO: support other cameras
   }

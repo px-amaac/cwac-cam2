@@ -92,7 +92,9 @@ public class CameraTwoEngine extends CameraEngine {
    * {@inheritDoc}
    */
   @Override
-  public void open(CameraDescriptor rawCamera, Surface surface) {
+  public void open(CameraDescriptor rawCamera,
+                   SurfaceTexture texture,
+                   Size previewSize) {
     Descriptor camera=(Descriptor)rawCamera;
 
     try {
@@ -101,7 +103,7 @@ public class CameraTwoEngine extends CameraEngine {
       }
 
       mgr.openCamera(camera.getId(),
-          new InitPreviewTransaction(camera, surface),
+          new InitPreviewTransaction(camera, new Surface(texture)),
           handler);
     }
     catch (CameraAccessException e) {

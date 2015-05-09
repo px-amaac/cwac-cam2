@@ -14,7 +14,9 @@
 
 package com.commonsware.cwac.cam2.classic;
 
+import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
+import android.os.Build;
 import android.view.Surface;
 import com.commonsware.cwac.cam2.CameraDescriptor;
 import com.commonsware.cwac.cam2.CameraEngine;
@@ -46,23 +48,81 @@ public class ClassicCameraEngine extends CameraEngine {
 
   @Override
   public void close(CameraDescriptor rawCamera) {
+    Descriptor descriptor=(Descriptor)rawCamera;
+    Camera camera=descriptor.getCamera();
 
+    if (camera!=null) {
+      camera.stopPreview();
+      camera.release();
+      descriptor.setCamera(null);
+    }
   }
 
   @Override
   public void destroy() {
-
+    // TODO: clean up background thread, once I have one
   }
 
   @Override
-  public List<Size> getAvailablePreviewSizes(CameraDescriptor camera) {
-    // TODO: for realz
-    return(new ArrayList<Size>());
+  public List<Size> getAvailablePreviewSizes(CameraDescriptor rawCamera) {
+    Descriptor descriptor=(Descriptor)rawCamera;
+    Camera camera=descriptor.getCamera();
+    boolean openedLocally=false;
+
+    if (camera==null) {
+      camera=Camera.open(descriptor.getCameraId());
+      openedLocally=true;
+    }
+
+    Camera.Parameters params=camera.getParameters();
+
+    ArrayList<Size> result=new ArrayList<Size>();
+
+    for (Camera.Size size : params.getSupportedPreviewSizes()) {
+      result.add(new Size(size.width, size.height));
+    }
+
+    if (openedLocally) {
+      camera.release();
+    }
+
+    return(result);
   }
 
   @Override
-  public void open(CameraDescriptor rawCamera, Surface surface) {
-    // TODO: for realz
+  public void open(CameraDescriptor rawCamera,
+                   SurfaceTexture texture,
+                   Size previewSize) {
+    Descriptor descriptor=(Descriptor)rawCamera;
+    Camera camera=descriptor.getCamera();
+
+    if (camera==null) {
+      camera=Camera.open(descriptor.getCameraId());
+      descriptor.setCamera(camera);
+    }
+
+    try {
+      camera.setPreviewTexture(texture);
+
+      Camera.Parameters params=camera.getParameters();
+
+      params.setPreviewSize(previewSize.getWidth(),
+          previewSize.getHeight());
+
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+        //      parameters.setRecordingHint(getHost().getRecordingHint() != CameraHost.RecordingHint.STILL_ONLY);
+      }
+
+      // TODO: get all other parameters changes here
+
+      camera.setParameters(params);
+      camera.startPreview();
+    }
+    catch (Exception e) {
+      camera.release();
+      descriptor.setCamera(null);
+      throw new IllegalStateException("Exception trying to open camera", e);
+    }
   }
 
   private boolean isMatch(int cameraId, CameraSelectionCriteria criteria) {

@@ -14,12 +14,26 @@
 
 package com.commonsware.cwac.cam2.classic;
 
+import android.hardware.Camera;
 import com.commonsware.cwac.cam2.CameraDescriptor;
 
-public class Descriptor implements CameraDescriptor {
+class Descriptor implements CameraDescriptor {
   private int cameraId;
+  private Camera camera;
 
   Descriptor(int cameraId) {
     this.cameraId=cameraId;
+  }
+
+  int getCameraId() {
+    return(cameraId);
+  }
+
+  void setCamera(Camera camera) {
+    this.camera=camera;
+  }
+
+  Camera getCamera() {
+    return(camera);
   }
 }
