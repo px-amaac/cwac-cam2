@@ -34,6 +34,7 @@ import com.commonsware.cwac.cam2.util.Size;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -50,6 +51,7 @@ public class CameraTwoEngine extends CameraEngine {
   final private Semaphore lock=new Semaphore(1);
   private CameraDevice cameraDevice=null;
   private CameraCaptureSession session=null;
+  private CountDownLatch closeLatch=null;
 
   /**
    * Standard constructor
@@ -123,7 +125,9 @@ public class CameraTwoEngine extends CameraEngine {
       lock.acquire();
 
       if (session!=null) {
+        closeLatch=new CountDownLatch(1);
         session.close();
+        closeLatch.await(2, TimeUnit.SECONDS);
         session=null;
       }
 
@@ -231,7 +235,9 @@ public class CameraTwoEngine extends CameraEngine {
     public void onClosed(CameraDevice camera) {
       super.onClosed(camera);
 
-      // TODO: raise event??
+      if (closeLatch!=null) {
+        closeLatch.countDown();
+      }
     }
   }
 
