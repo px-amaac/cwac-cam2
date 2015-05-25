@@ -16,9 +16,9 @@ package com.commonsware.cwac.cam2;
 
 import android.graphics.SurfaceTexture;
 import android.os.Build;
-import android.view.Surface;
 import com.commonsware.cwac.cam2.util.Size;
 import java.util.List;
+import de.greenrobot.event.EventBus;
 
 /**
  * Controller for camera-related functions, designed to be used
@@ -50,32 +50,34 @@ public class CameraController implements CameraView.StateCallback {
   public void setEngine(CameraEngine engine) {
     this.engine=engine;
 
+    EventBus.getDefault().register(this);
+
+/*
     CameraSelectionCriteria criteria=
         new CameraSelectionCriteria.Builder()
             .facing(CameraSelectionCriteria.Facing.FRONT).build();
-    List<CameraDescriptor> cameras=engine.getCameraDescriptors(criteria);
+    List<CameraDescriptor> cameras=engine.loadCameraDescriptors(criteria);
 
     if (cameras.size()>0) {
       frontCamera=cameras.get(0);
     }
+*/
 
-    criteria=
+    CameraSelectionCriteria criteria=
         new CameraSelectionCriteria.Builder()
             .facing(CameraSelectionCriteria.Facing.BACK).build();
-    cameras=engine.getCameraDescriptors(criteria);
-
-    if (cameras.size()>0) {
-      backCamera=cameras.get(0);
-    }
+    engine.loadCameraDescriptors(criteria);
   }
 
   /**
    * @return true if the device has both a front-facing camera and
    * a back-facing camera
    */
+/*
   public boolean hasBothCameras() {
     return(frontCamera!=null && backCamera!=null);
   }
+*/
 
   /**
    * Call this from onStart() of an activity or fragment, or from
@@ -110,6 +112,8 @@ public class CameraController implements CameraView.StateCallback {
     if (engine!=null) {
       engine.destroy();
     }
+
+    EventBus.getDefault().unregister(this);
   }
 
   /**
@@ -148,22 +152,22 @@ public class CameraController implements CameraView.StateCallback {
 
   private void open() {
     if (previewSize==null) {
-      choosePreviewSize();
+      engine.loadAvailablePreviewSizes(backCamera);
     }
-
-    SurfaceTexture texture=cv.getSurfaceTexture();
-
-    if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.JELLY_BEAN_MR1) {
-      texture.setDefaultBufferSize(cv.getWidth(), cv.getHeight());
+    else {
+      openForRealz();
     }
-
-    engine.open(backCamera, texture, previewSize);
-
-    // TODO: support other cameras
   }
 
-  private void choosePreviewSize() {
-    List<Size> sizes=engine.getAvailablePreviewSizes(backCamera);
+  @SuppressWarnings("unused")
+  public void onEventMainThread(CameraEngine.CameraDescriptorsEvent event) {
+    if (event.descriptors.size()>0) {
+      backCamera=event.descriptors.get(0);
+    }
+  }
+
+  @SuppressWarnings("unused")
+  public void onEventMainThread(CameraEngine.PreviewSizeEvent event) {
     // TODO: support other cameras
     // TODO: optional limit preview to same aspect ratio as chosen picture size
 
@@ -172,7 +176,7 @@ public class CameraController implements CameraView.StateCallback {
     Size smallestBiggerThanPreview=null;
     long currentSmallestArea=Integer.MAX_VALUE;
 
-    for (Size size : sizes) {
+    for (Size size : event.sizes) {
       long currentArea=size.getWidth()*size.getHeight();
 
       if (largest==null || size.getWidth()*size.getHeight()>currentLargestArea) {
@@ -193,5 +197,18 @@ public class CameraController implements CameraView.StateCallback {
         : smallestBiggerThanPreview);
 
     cv.setPreviewSize(previewSize);
+    openForRealz();
+  }
+
+  private void openForRealz() {
+    SurfaceTexture texture=cv.getSurfaceTexture();
+
+    if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.JELLY_BEAN_MR1) {
+      texture.setDefaultBufferSize(cv.getWidth(), cv.getHeight());
+    }
+
+    engine.open(backCamera, texture, previewSize);
+
+    // TODO: support other cameras
   }
 }

@@ -66,61 +66,81 @@ public class CameraTwoEngine extends CameraEngine {
     handler=new Handler(handlerThread.getLooper());
   }
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public void destroy() {
     handlerThread.quitSafely();
+    getBus().post(new CameraEngine.DestroyEvent());
   }
 
   /**
    * {@inheritDoc}
    */
-  public List<CameraDescriptor> getCameraDescriptors(CameraSelectionCriteria criteria) {
-    List<CameraDescriptor> result=new ArrayList<CameraDescriptor>();
+  public void loadCameraDescriptors(final CameraSelectionCriteria criteria) {
+    new Thread() {
+      public void run() {
+        List<CameraDescriptor> result=new ArrayList<CameraDescriptor>();
 
-    try {
-      for (String cameraId : mgr.getCameraIdList()) {
-        if (isMatch(cameraId, criteria)) {
-          result.add(new Descriptor(cameraId));
+        try {
+          for (String cameraId : mgr.getCameraIdList()) {
+            if (isMatch(cameraId, criteria)) {
+              result.add(new Descriptor(cameraId));
+            }
+          }
+
+          getBus().post(new CameraEngine.CameraDescriptorsEvent(result));
+        }
+        catch (CameraAccessException e) {
+          getBus().post(new CameraEngine.CameraDescriptorsEvent(e));
+
+          if (isDebug()) {
+            Log.e(getClass().getSimpleName(), "Exception accessing camera", e);
+          }
         }
       }
-    }
-    catch (CameraAccessException e) {
-      throw new IllegalStateException("Exception accessing camera", e);
-    }
-
-    return(result);
+    }.start();
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public void open(CameraDescriptor rawCamera,
-                   SurfaceTexture texture,
-                   Size previewSize) {
-    Descriptor camera=(Descriptor)rawCamera;
+  public void open(final CameraDescriptor rawCamera,
+                   final SurfaceTexture texture,
+                   final Size previewSize) {
+    new Thread() {
+      public void run() {
+        Descriptor camera=(Descriptor)rawCamera;
 
-    try {
-      if (!lock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
-        throw new RuntimeException("Time out waiting to lock camera opening.");
+        try {
+          if (!lock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
+            throw new RuntimeException("Time out waiting to lock camera opening.");
+          }
+
+          mgr.openCamera(camera.getId(),
+              new InitPreviewTransaction(camera, new Surface(texture)),
+              handler);
+
+          getBus().post(new CameraEngine.OpenEvent());
+        }
+        catch (Exception e) {
+          getBus().post(new CameraEngine.OpenEvent(e));
+
+          if (isDebug()) {
+            Log.e(getClass().getSimpleName(), "Exception opening camera", e);
+          }
+        }
       }
-
-      mgr.openCamera(camera.getId(),
-          new InitPreviewTransaction(camera, new Surface(texture)),
-          handler);
-    }
-    catch (CameraAccessException e) {
-      throw new IllegalStateException("Exception opening camera", e);
-    }
-    catch (InterruptedException e) {
-      throw new IllegalStateException("Interrupted during camera opening", e);
-    }
+    }.start();
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public void close(CameraDescriptor rawCamera) {
+  public void close(final CameraDescriptor rawCamera) {
     try {
       lock.acquire();
 
@@ -142,8 +162,8 @@ public class CameraTwoEngine extends CameraEngine {
 
       // TODO: image reader close
     }
-    catch (InterruptedException e) {
-      throw new IllegalStateException("Interrupted during camera closing", e);
+    catch (Exception e) {
+      throw new IllegalStateException("Exception closing camera", e);
     }
     finally {
       lock.release();
@@ -154,24 +174,32 @@ public class CameraTwoEngine extends CameraEngine {
    * {@inheritDoc}
    */
   @Override
-  public List<Size> getAvailablePreviewSizes(CameraDescriptor rawCamera) {
-    ArrayList<Size> result=new ArrayList<Size>();
-    Descriptor camera=(Descriptor)rawCamera;
+  public void loadAvailablePreviewSizes(final CameraDescriptor rawCamera) {
+    new Thread() {
+      public void run() {
+        ArrayList<Size> result=new ArrayList<Size>();
+        Descriptor camera=(Descriptor)rawCamera;
 
-    try {
-      CameraCharacteristics c=mgr.getCameraCharacteristics(camera.getId());
-      StreamConfigurationMap map=c.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-      android.util.Size[] rawSizes=map.getOutputSizes(SurfaceTexture.class);
+        try {
+          CameraCharacteristics c=mgr.getCameraCharacteristics(camera.getId());
+          StreamConfigurationMap map=c.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+          android.util.Size[] rawSizes=map.getOutputSizes(SurfaceTexture.class);
 
-      for (android.util.Size size : rawSizes) {
-        result.add(new Size(size.getWidth(), size.getHeight()));
+          for (android.util.Size size : rawSizes) {
+            result.add(new Size(size.getWidth(), size.getHeight()));
+          }
+
+          getBus().post(new CameraEngine.PreviewSizeEvent(result));
+        }
+        catch (Exception e) {
+          getBus().post(new CameraEngine.PreviewSizeEvent(e));
+
+          if (isDebug()) {
+            Log.e(getClass().getSimpleName(), "Exception loading preview sizes", e);
+          }
+        }
       }
-    }
-    catch (CameraAccessException e) {
-      throw new IllegalStateException("Exception getting preview sizes", e);
-    }
-
-    return(result);
+    }.start();
   }
 
   private boolean isMatch(String cameraId, CameraSelectionCriteria criteria)

@@ -20,7 +20,6 @@ import com.commonsware.cwac.cam2.CameraDescriptor;
 import com.commonsware.cwac.cam2.CameraEngine;
 import com.commonsware.cwac.cam2.CameraSelectionCriteria;
 import junit.framework.Assert;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import java.util.List;
@@ -31,7 +30,7 @@ public class CameraDescriptorTest {
 
   @Test
   public void all() {
-    List<CameraDescriptor> descriptors=engine.getCameraDescriptors(null);
+    List<CameraDescriptor> descriptors=engine.loadCameraDescriptors(null);
 
     Assert.assertEquals("has 2 descriptors", 2, descriptors.size());
   }
@@ -42,7 +41,7 @@ public class CameraDescriptorTest {
 
     b.facing(CameraSelectionCriteria.Facing.FRONT);
 
-    List<CameraDescriptor> descriptors=engine.getCameraDescriptors(b.build());
+    List<CameraDescriptor> descriptors=engine.loadCameraDescriptors(b.build());
 
     Assert.assertEquals("has 1 descriptors", 1, descriptors.size());
   }
@@ -53,7 +52,7 @@ public class CameraDescriptorTest {
 
     b.facing(CameraSelectionCriteria.Facing.BACK);
 
-    List<CameraDescriptor> descriptors=engine.getCameraDescriptors(b.build());
+    List<CameraDescriptor> descriptors=engine.loadCameraDescriptors(b.build());
 
     Assert.assertEquals("has 1 descriptors", 1, descriptors.size());
   }

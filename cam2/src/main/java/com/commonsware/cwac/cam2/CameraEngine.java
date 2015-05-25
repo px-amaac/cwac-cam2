@@ -25,6 +25,7 @@ import com.commonsware.cwac.cam2.camera2.CameraTwoEngine;
 import com.commonsware.cwac.cam2.classic.ClassicCameraEngine;
 import com.commonsware.cwac.cam2.util.Size;
 import java.util.List;
+import de.greenrobot.event.EventBus;
 
 /**
  * Base class for camera engines, which abstract out camera
@@ -32,16 +33,106 @@ import java.util.List;
  * android.hardware.camera2.*).
  */
 abstract public class CameraEngine {
+  private EventBus bus=EventBus.getDefault();
+  private boolean isDebug=false;
+
+  private static class CrashableEvent {
+    /**
+     * The exception that was raised when trying to process
+     * the request, or null if no such exception was raised.
+     */
+    public final Exception exception;
+
+    public CrashableEvent() {
+      this(null);
+    }
+
+    public CrashableEvent(Exception exception) {
+      this.exception=null;
+    }
+  }
+
   /**
-   * Returns a roster of the available cameras for this engine,
-   * or the cameras that match the supplied criteria,
-   * in the form of a collection of CameraDescriptor objects.
+   * Event raised when camera descriptors are ready for use.
+   * Subscribe to this event if you use loadCameraDescriptors()
+   * to get the results. May include an exception if there was
+   * an exception accessing the camera.
+   */
+  public static class CameraDescriptorsEvent extends CrashableEvent {
+    /**
+     * The camera descriptors loaded in response to a call
+     * to loadCameraDescriptors()
+     */
+    public final List<CameraDescriptor> descriptors;
+
+    public CameraDescriptorsEvent(List<CameraDescriptor> descriptors) {
+      this.descriptors=descriptors;
+    }
+
+    public CameraDescriptorsEvent(Exception exception) {
+      super(exception);
+      this.descriptors=null;
+    }
+  }
+
+  /**
+   * Event raised after destroy() is called, to inform you
+   * about completion of the work.
+   */
+  public static class DestroyEvent {
+
+  }
+
+  /**
+   * Event raised when the camera has been opened.
+   * Subscribe to this event if you use open()
+   * to to find out when the open has succeeded.
+   * May include an exception if there was
+   * an exception accessing the camera.
+   */
+  public static class OpenEvent extends CrashableEvent {
+    public OpenEvent() {
+      super();
+    }
+
+    public OpenEvent(Exception exception) {
+      super(exception);
+    }
+  }
+
+  /**
+   * Event raised when preview sizes are ready for use.
+   * Subscribe to this event if you use loadAvailablePreviewSizes()
+   * to get the results. May include an exception if there was
+   * an exception accessing the camera.
+   */
+  public static class PreviewSizeEvent extends CrashableEvent {
+    /**
+     * The available preview sizes
+     */
+    final public List<Size> sizes;
+
+    public PreviewSizeEvent(List<Size> sizes) {
+      super();
+      this.sizes=sizes;
+    }
+
+    public PreviewSizeEvent(Exception exception) {
+      super(exception);
+      this.sizes=null;
+    }
+  }
+
+  /**
+   * Loads a roster of the available cameras for this engine,
+   * or the cameras that match the supplied criteria. Subscribe
+   * to the CameraDescriptorsEvent to get the results of this
+   * call asynchronously.
    *
    * @param criteria requirements for the matching cameras, or
    *                 null to return all cameras
-   * @return roster of matching (or all) cameras
    */
-  abstract public List<CameraDescriptor> getCameraDescriptors(CameraSelectionCriteria criteria);
+  abstract public void loadCameraDescriptors(CameraSelectionCriteria criteria);
 
   /**
    * Call this when the engine is to be shut down permanently.
@@ -51,16 +142,18 @@ abstract public class CameraEngine {
   abstract public void destroy();
 
   /**
-   * Find out what preview sizes the indicated camera supports
+   * Find out what preview sizes the indicated camera supports.
+   * Subscribe to the PreviewSizesEvent to get the results of
+   * this call asynchronously.
    *
    * @param camera the CameraDescriptor of the camera of interest
-   * @return the available preview sizes, in no particular order
    */
-  abstract public List<Size> getAvailablePreviewSizes(CameraDescriptor camera);
+  abstract public void loadAvailablePreviewSizes(CameraDescriptor camera);
 
   /**
    * Open the requested camera and show a preview on the supplied
-   * surface.
+   * surface. Subscribe to the OpenEvent to find out when this
+   * work is completed.
    *
    * @param rawCamera the CameraDescriptor of the camera of interest
    * @param texture the preview surface
@@ -71,7 +164,8 @@ abstract public class CameraEngine {
                             Size previewSize);
 
   /**
-   * Close the open camera
+   * Close the open camera. Note that this work is done
+   * synchronously, while most calls to this class are asynchronous.
    *
    * @param rawCamera the CameraDescriptor of the camera of interest
    */
@@ -90,5 +184,39 @@ abstract public class CameraEngine {
     }
 
     return(new ClassicCameraEngine());
+  }
+
+  /**
+   * Sets the event bus to use, where the default is the
+   * default event bus supplied by the EventBus class.
+   *
+   * @param bus the bus to use for events
+   */
+  public void setBus(EventBus bus) {
+    this.bus=bus;
+  }
+
+  /**
+   * @return the bus to use for events
+   */
+  public EventBus getBus() {
+    return(bus);
+  }
+
+  /**
+   * Sets whether or not exceptions should be logged, in addition
+   * to being included in relevant events. The default is false.
+   *
+   * @param isDebug true if exceptions should be logged, false otherwise
+   */
+  public void setDebug(boolean isDebug) {
+    this.isDebug=isDebug;
+  }
+
+  /**
+   * @return true if exceptions should be logged, false otherwise
+   */
+  public boolean isDebug() {
+    return(isDebug);
   }
 }

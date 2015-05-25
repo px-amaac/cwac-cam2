@@ -149,9 +149,9 @@ public class CameraFragment extends Fragment {
 
     FlipView lens=(FlipView)main.findViewById(R.id.cwac_cam2_fragment_lens);
 
-    if (!ctrl.hasBothCameras()) {
+//    if (!ctrl.hasBothCameras()) {
       lens.setVisibility(View.GONE);
-    }
+//    }
 
     return(main);
   }

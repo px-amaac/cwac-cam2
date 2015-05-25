@@ -97,6 +97,7 @@ public class CameraActivity extends Activity
       CameraController ctrl=new CameraController();
 
       ctrl.setEngine(CameraEngine.buildInstance(this));
+      ctrl.getEngine().setDebug(true);
       frag.setController(ctrl);
 
       getFragmentManager()
