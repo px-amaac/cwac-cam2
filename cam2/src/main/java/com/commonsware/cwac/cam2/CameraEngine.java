@@ -79,7 +79,7 @@ abstract public class CameraEngine {
    * Event raised after destroy() is called, to inform you
    * about completion of the work.
    */
-  public static class DestroyEvent {
+  public static class DestroyedEvent {
 
   }
 
@@ -90,12 +90,12 @@ abstract public class CameraEngine {
    * May include an exception if there was
    * an exception accessing the camera.
    */
-  public static class OpenEvent extends CrashableEvent {
-    public OpenEvent() {
+  public static class OpenedEvent extends CrashableEvent {
+    public OpenedEvent() {
       super();
     }
 
-    public OpenEvent(Exception exception) {
+    public OpenedEvent(Exception exception) {
       super(exception);
     }
   }
@@ -106,20 +106,35 @@ abstract public class CameraEngine {
    * to get the results. May include an exception if there was
    * an exception accessing the camera.
    */
-  public static class PreviewSizeEvent extends CrashableEvent {
+  public static class PreviewSizesEvent extends CrashableEvent {
     /**
      * The available preview sizes
      */
     final public List<Size> sizes;
 
-    public PreviewSizeEvent(List<Size> sizes) {
+    public PreviewSizesEvent(List<Size> sizes) {
       super();
       this.sizes=sizes;
     }
 
-    public PreviewSizeEvent(Exception exception) {
+    public PreviewSizesEvent(Exception exception) {
       super(exception);
       this.sizes=null;
+    }
+  }
+
+  /**
+   * Event raised when picture is taken, as a result of a
+   * takePicture() call. May include an exception if there was
+   * an exception accessing the camera.
+   */
+  public static class PictureTakenEvent extends CrashableEvent {
+    public PictureTakenEvent() {
+      super();
+    }
+
+    public PictureTakenEvent(Exception exception) {
+      super(exception);
     }
   }
 
@@ -170,6 +185,18 @@ abstract public class CameraEngine {
    * @param rawCamera the CameraDescriptor of the camera of interest
    */
   abstract public void close(CameraDescriptor rawCamera);
+
+  /**
+   * Take a picture, on the supplied camera, using the picture
+   * configuration from the supplied transaction. Posts a
+   * PictureTakenEvent when the request is completed, successfully
+   * or unsuccessfully.
+   *
+   * @param rawCamera the CameraDescriptor of the camera of interest
+   * @param xact the configuration of the picture to take
+   */
+  abstract public void takePicture(CameraDescriptor rawCamera,
+                                   PictureTransaction xact);
 
   /**
    * Builds a CameraEngine instance based on the device's

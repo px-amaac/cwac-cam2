@@ -17,7 +17,6 @@ package com.commonsware.cwac.cam2;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
 import com.commonsware.cwac.cam2.util.Size;
-import java.util.List;
 import de.greenrobot.event.EventBus;
 
 /**
@@ -150,6 +149,10 @@ public class CameraController implements CameraView.StateCallback {
     stop();
   }
 
+  public void takePicture() {
+    engine.takePicture(backCamera, new PictureTransaction());
+  }
+
   private void open() {
     if (previewSize==null) {
       engine.loadAvailablePreviewSizes(backCamera);
@@ -167,7 +170,7 @@ public class CameraController implements CameraView.StateCallback {
   }
 
   @SuppressWarnings("unused")
-  public void onEventMainThread(CameraEngine.PreviewSizeEvent event) {
+  public void onEventMainThread(CameraEngine.PreviewSizesEvent event) {
     // TODO: support other cameras
     // TODO: optional limit preview to same aspect ratio as chosen picture size
 

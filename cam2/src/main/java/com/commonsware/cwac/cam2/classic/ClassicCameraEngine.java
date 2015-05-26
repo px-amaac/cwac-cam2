@@ -18,10 +18,10 @@ import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.os.Build;
 import android.util.Log;
-import android.view.Surface;
 import com.commonsware.cwac.cam2.CameraDescriptor;
 import com.commonsware.cwac.cam2.CameraEngine;
 import com.commonsware.cwac.cam2.CameraSelectionCriteria;
+import com.commonsware.cwac.cam2.PictureTransaction;
 import com.commonsware.cwac.cam2.util.Size;
 import java.util.ArrayList;
 import java.util.List;
@@ -71,8 +71,16 @@ public class ClassicCameraEngine extends CameraEngine {
    * {@inheritDoc}
    */
   @Override
+  public void takePicture(CameraDescriptor rawCamera, PictureTransaction xact) {
+
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public void destroy() {
-    getBus().post(new CameraEngine.DestroyEvent());
+    getBus().post(new DestroyedEvent());
   }
 
   /**
@@ -103,7 +111,7 @@ public class ClassicCameraEngine extends CameraEngine {
           camera.release();
         }
 
-        getBus().post(new CameraEngine.PreviewSizeEvent(result));
+        getBus().post(new PreviewSizesEvent(result));
       }
     }.start();
   }
@@ -141,12 +149,12 @@ public class ClassicCameraEngine extends CameraEngine {
 
           camera.setParameters(params);
           camera.startPreview();
-          getBus().post(new CameraEngine.OpenEvent());
+          getBus().post(new OpenedEvent());
         }
         catch (Exception e) {
           camera.release();
           descriptor.setCamera(null);
-          getBus().post(new CameraEngine.OpenEvent(e));
+          getBus().post(new OpenedEvent(e));
 
           if (isDebug()) {
             Log.e(getClass().getSimpleName(), "Exception opening camera", e);

@@ -16,7 +16,6 @@ package com.commonsware.cwac.cam2;
 
 import android.app.Activity;
 import android.app.Fragment;
-import android.content.res.Configuration;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -24,7 +23,7 @@ import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import com.commonsware.cwac.cam2.util.Utils;
 import com.github.polok.flipview.FlipView;
-import java.util.List;
+import de.greenrobot.event.EventBus;
 
 /**
  * Fragment for displaying a camera preview, with hooks to allow
@@ -80,6 +79,8 @@ public class CameraFragment extends Fragment {
   public void onStart() {
     super.onStart();
 
+    EventBus.getDefault().register(this);
+
     if (ctrl!=null) {
       ctrl.start();
     }
@@ -94,6 +95,8 @@ public class CameraFragment extends Fragment {
     if (ctrl!=null) {
       ctrl.stop();
     }
+
+    EventBus.getDefault().unregister(this);
 
     super.onStop();
   }
@@ -131,9 +134,11 @@ public class CameraFragment extends Fragment {
     cv.setOnLongClickListener(new View.OnLongClickListener() {
       @Override
       public boolean onLongClick(View view) {
-        getContract().completeRequest();
+        ctrl.takePicture();
 
-        return (true);
+        // getContract().completeRequest();
+
+        return(true);
       }
     });
 
@@ -170,6 +175,15 @@ public class CameraFragment extends Fragment {
    */
   public void setController(CameraController ctrl) {
     this.ctrl=ctrl;
+  }
+
+  @SuppressWarnings("unused")
+  public void onEventMainThread(CameraEngine.PictureTakenEvent event) {
+    // TODO: figure out how to handle this, as I cannot quit
+    // immediately, as otherwise the rest of the camera system
+    // gets cranky
+
+    // getContract().completeRequest();
   }
 
   private Contract getContract() {
