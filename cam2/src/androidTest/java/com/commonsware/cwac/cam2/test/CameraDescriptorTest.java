@@ -28,13 +28,16 @@ import java.util.List;
 public class CameraDescriptorTest {
   final private CameraEngine engine=CameraEngine.buildInstance(InstrumentationRegistry.getTargetContext());
 
+/*
   @Test
   public void all() {
     List<CameraDescriptor> descriptors=engine.loadCameraDescriptors(null);
 
     Assert.assertEquals("has 2 descriptors", 2, descriptors.size());
   }
+*/
 
+/*
   @Test
   public void front() {
     CameraSelectionCriteria.Builder b=new CameraSelectionCriteria.Builder();
@@ -45,7 +48,9 @@ public class CameraDescriptorTest {
 
     Assert.assertEquals("has 1 descriptors", 1, descriptors.size());
   }
+*/
 
+/*
   @Test
   public void back() {
     CameraSelectionCriteria.Builder b=new CameraSelectionCriteria.Builder();
@@ -56,4 +61,5 @@ public class CameraDescriptorTest {
 
     Assert.assertEquals("has 1 descriptors", 1, descriptors.size());
   }
+*/
 }

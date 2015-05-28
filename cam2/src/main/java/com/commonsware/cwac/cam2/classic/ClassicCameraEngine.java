@@ -14,6 +14,7 @@
 
 package com.commonsware.cwac.cam2.classic;
 
+import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.os.Build;
@@ -22,6 +23,7 @@ import com.commonsware.cwac.cam2.CameraDescriptor;
 import com.commonsware.cwac.cam2.CameraEngine;
 import com.commonsware.cwac.cam2.CameraSelectionCriteria;
 import com.commonsware.cwac.cam2.PictureTransaction;
+import com.commonsware.cwac.cam2.util.ShitToGetRidOf;
 import com.commonsware.cwac.cam2.util.Size;
 import java.util.ArrayList;
 import java.util.List;
@@ -71,8 +73,24 @@ public class ClassicCameraEngine extends CameraEngine {
    * {@inheritDoc}
    */
   @Override
-  public void takePicture(CameraDescriptor rawCamera, PictureTransaction xact) {
+  public void takePicture(final CameraDescriptor rawCamera, PictureTransaction xact) {
+    new Thread() {
+      public void run() {
+        Descriptor descriptor=(Descriptor)rawCamera;
+        Camera camera=descriptor.getCamera();
 
+        try {
+          camera.takePicture(null, null, new TakePictureTransaction());
+        }
+        catch (Exception e) {
+          getBus().post(new PictureTakenEvent(e));
+
+          if (isDebug()) {
+            Log.e(getClass().getSimpleName(), "Exception taking picture", e);
+          }
+        }
+      }
+    }.start();
   }
 
   /**
@@ -147,6 +165,10 @@ public class ClassicCameraEngine extends CameraEngine {
 
           // TODO: get all other parameters changes here
 
+          Size size=ShitToGetRidOf.getLargestPictureSize(params);
+          params.setPictureSize(size.getWidth(), size.getHeight());
+          params.setPictureFormat(ImageFormat.JPEG);
+
           camera.setParameters(params);
           camera.startPreview();
           getBus().post(new OpenedEvent());
@@ -180,5 +202,13 @@ public class ClassicCameraEngine extends CameraEngine {
     }
 
     return(result);
+  }
+
+  private class TakePictureTransaction implements Camera.PictureCallback {
+    @Override
+    public void onPictureTaken(byte[] bytes, Camera camera) {
+      getBus().post(new PictureTakenEvent());
+      camera.startPreview();
+    }
   }
 }

@@ -184,6 +184,7 @@ public class CameraFragment extends Fragment {
     // gets cranky
 
     // getContract().completeRequest();
+    android.util.Log.e(getClass().getSimpleName(), "picture taken!");
   }
 
   private Contract getContract() {

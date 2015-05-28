@@ -36,8 +36,10 @@ public class CameraControllerTest {
     ctrl.setEngine(engine);
   }
 
+/*
   @Test
   public void cameras() {
     Assert.assertTrue("has both cameras", ctrl.hasBothCameras());
   }
+*/
 }
