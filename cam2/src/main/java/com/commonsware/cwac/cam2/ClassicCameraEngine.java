@@ -12,18 +12,13 @@
  limitations under the License.
  */
 
-package com.commonsware.cwac.cam2.classic;
+package com.commonsware.cwac.cam2;
 
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.os.Build;
 import android.util.Log;
-import com.commonsware.cwac.cam2.CameraDescriptor;
-import com.commonsware.cwac.cam2.CameraEngine;
-import com.commonsware.cwac.cam2.CameraSelectionCriteria;
-import com.commonsware.cwac.cam2.PictureTransaction;
-import com.commonsware.cwac.cam2.util.ShitToGetRidOf;
 import com.commonsware.cwac.cam2.util.Size;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +32,14 @@ public class ClassicCameraEngine extends CameraEngine {
   /**
    * {@inheritDoc}
    */
+  @Override
+  public CameraSession.Builder buildSession(CameraDescriptor descriptor) {
+    return(new SessionBuilder(descriptor));
+  }
+
+  /**
+   * {@inheritDoc}
+   */
   public void loadCameraDescriptors(final CameraSelectionCriteria criteria) {
     new Thread() {
       public void run() {
@@ -45,7 +48,28 @@ public class ClassicCameraEngine extends CameraEngine {
 
         for (int cameraId=0; cameraId<count; cameraId++) {
           if (isMatch(cameraId, criteria)) {
-            result.add(new Descriptor(cameraId));
+            Descriptor descriptor=new Descriptor(cameraId);
+
+            result.add(descriptor);
+
+            Camera camera=Camera.open(descriptor.getCameraId());
+            Camera.Parameters params=camera.getParameters();
+            ArrayList<Size> sizes=new ArrayList<Size>();
+
+            for (Camera.Size size : params.getSupportedPreviewSizes()) {
+              sizes.add(new Size(size.width, size.height));
+            }
+
+            descriptor.setPreviewSizes(sizes);
+
+            sizes=new ArrayList<Size>();
+
+            for (Camera.Size size : params.getSupportedPictureSizes()) {
+              sizes.add(new Size(size.width, size.height));
+            }
+
+            descriptor.setPictureSizes(sizes);
+            camera.release();
           }
         }
 
@@ -58,8 +82,8 @@ public class ClassicCameraEngine extends CameraEngine {
    * {@inheritDoc}
    */
   @Override
-  public void close(final CameraDescriptor rawCamera) {
-    Descriptor descriptor=(Descriptor)rawCamera;
+  public void close(final CameraSession session) {
+    Descriptor descriptor=(Descriptor)session.getDescriptor();
     Camera camera=descriptor.getCamera();
 
     if (camera!=null) {
@@ -73,10 +97,10 @@ public class ClassicCameraEngine extends CameraEngine {
    * {@inheritDoc}
    */
   @Override
-  public void takePicture(final CameraDescriptor rawCamera, PictureTransaction xact) {
+  public void takePicture(final CameraSession session, PictureTransaction xact) {
     new Thread() {
       public void run() {
-        Descriptor descriptor=(Descriptor)rawCamera;
+        Descriptor descriptor=(Descriptor)session.getDescriptor();
         Camera camera=descriptor.getCamera();
 
         try {
@@ -105,45 +129,11 @@ public class ClassicCameraEngine extends CameraEngine {
    * {@inheritDoc}
    */
   @Override
-  public void loadAvailablePreviewSizes(final CameraDescriptor rawCamera) {
+  public void open(final CameraSession session,
+                   final SurfaceTexture texture) {
     new Thread() {
       public void run() {
-        Descriptor descriptor=(Descriptor)rawCamera;
-        Camera camera=descriptor.getCamera();
-        boolean openedLocally=false;
-
-        if (camera==null) {
-          camera=Camera.open(descriptor.getCameraId());
-          openedLocally=true;
-        }
-
-        Camera.Parameters params=camera.getParameters();
-
-        ArrayList<Size> result=new ArrayList<Size>();
-
-        for (Camera.Size size : params.getSupportedPreviewSizes()) {
-          result.add(new Size(size.width, size.height));
-        }
-
-        if (openedLocally) {
-          camera.release();
-        }
-
-        getBus().post(new PreviewSizesEvent(result));
-      }
-    }.start();
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void open(final CameraDescriptor rawCamera,
-                   final SurfaceTexture texture,
-                   final Size previewSize) {
-    new Thread() {
-      public void run() {
-        Descriptor descriptor=(Descriptor)rawCamera;
+        Descriptor descriptor=(Descriptor)session.getDescriptor();
         Camera camera=descriptor.getCamera();
 
         if (camera==null) {
@@ -156,8 +146,8 @@ public class ClassicCameraEngine extends CameraEngine {
 
           Camera.Parameters params=camera.getParameters();
 
-          params.setPreviewSize(previewSize.getWidth(),
-              previewSize.getHeight());
+          params.setPreviewSize(session.getPreviewSize().getWidth(),
+              session.getPreviewSize().getHeight());
 
           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
             //      parameters.setRecordingHint(getHost().getRecordingHint() != CameraHost.RecordingHint.STILL_ONLY);
@@ -165,9 +155,9 @@ public class ClassicCameraEngine extends CameraEngine {
 
           // TODO: get all other parameters changes here
 
-          Size size=ShitToGetRidOf.getLargestPictureSize(params);
-          params.setPictureSize(size.getWidth(), size.getHeight());
-          params.setPictureFormat(ImageFormat.JPEG);
+          params.setPictureSize(session.getPictureSize().getWidth(),
+              session.getPictureSize().getHeight());
+          params.setPictureFormat(session.getPictureFormat());
 
           camera.setParameters(params);
           camera.startPreview();
@@ -209,6 +199,64 @@ public class ClassicCameraEngine extends CameraEngine {
     public void onPictureTaken(byte[] bytes, Camera camera) {
       getBus().post(new PictureTakenEvent());
       camera.startPreview();
+    }
+  }
+
+  static class Descriptor implements CameraDescriptor {
+    private int cameraId;
+    private Camera camera;
+    private ArrayList<Size> pictureSizes;
+    private ArrayList<Size> previewSizes;
+
+    private Descriptor(int cameraId) {
+      this.cameraId=cameraId;
+    }
+
+    public int getCameraId() {
+      return(cameraId);
+    }
+
+    private void setCamera(Camera camera) {
+      this.camera=camera;
+    }
+
+    private Camera getCamera() {
+      return(camera);
+    }
+
+    @Override
+    public ArrayList<Size> getPreviewSizes() {
+      return(previewSizes);
+    }
+
+    private void setPreviewSizes(ArrayList<Size> sizes) {
+      previewSizes=sizes;
+    }
+
+    @Override
+    public ArrayList<Size> getPictureSizes() {
+      return(pictureSizes);
+    }
+
+    @Override
+    public boolean isPictureFormatSupported(int format) {
+      return(ImageFormat.JPEG==format);
+    }
+
+    private void setPictureSizes(ArrayList<Size> sizes) {
+      pictureSizes=sizes;
+    }
+  }
+
+  private static class Session extends CameraSession {
+    private Session(CameraDescriptor descriptor) {
+      super(descriptor);
+    }
+  }
+
+  private static class SessionBuilder extends CameraSession.Builder {
+    private SessionBuilder(CameraDescriptor descriptor) {
+      super(new Session(descriptor));
     }
   }
 }

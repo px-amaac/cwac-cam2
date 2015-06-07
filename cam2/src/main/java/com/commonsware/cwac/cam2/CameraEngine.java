@@ -14,16 +14,10 @@
 
 package com.commonsware.cwac.cam2;
 
-import android.app.Activity;
 import android.content.Context;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
-import android.view.Surface;
-import android.view.TextureView;
-import android.view.View;
-import com.commonsware.cwac.cam2.camera2.CameraTwoEngine;
-import com.commonsware.cwac.cam2.classic.ClassicCameraEngine;
-import com.commonsware.cwac.cam2.util.Size;
+import android.util.Log;
 import java.util.List;
 import de.greenrobot.event.EventBus;
 
@@ -47,8 +41,12 @@ abstract public class CameraEngine {
       this(null);
     }
 
-    public CrashableEvent(Exception exception) {
-      this.exception=null;
+    public CrashableEvent(Exception e) {
+      if (e!=null) {
+        Log.e("CWAC-Cam2", "Exception in camera processing", e);
+      }
+
+      this.exception=e;
     }
   }
 
@@ -101,29 +99,6 @@ abstract public class CameraEngine {
   }
 
   /**
-   * Event raised when preview sizes are ready for use.
-   * Subscribe to this event if you use loadAvailablePreviewSizes()
-   * to get the results. May include an exception if there was
-   * an exception accessing the camera.
-   */
-  public static class PreviewSizesEvent extends CrashableEvent {
-    /**
-     * The available preview sizes
-     */
-    final public List<Size> sizes;
-
-    public PreviewSizesEvent(List<Size> sizes) {
-      super();
-      this.sizes=sizes;
-    }
-
-    public PreviewSizesEvent(Exception exception) {
-      super(exception);
-      this.sizes=null;
-    }
-  }
-
-  /**
    * Event raised when picture is taken, as a result of a
    * takePicture() call. May include an exception if there was
    * an exception accessing the camera.
@@ -137,6 +112,18 @@ abstract public class CameraEngine {
       super(exception);
     }
   }
+
+  /**
+   * Create a CameraSession.Builder to build a CameraSession
+   * for a given CameraDescriptor. On the Builder is where you
+   * indicate your desired preview size, picture size, and
+   * so forth.
+   *
+   * @param descriptor the CameraDescriptor for which we want
+   *                   a session
+   * @return a Builder to build that session
+   */
+  abstract public CameraSession.Builder buildSession(CameraDescriptor descriptor);
 
   /**
    * Loads a roster of the available cameras for this engine,
@@ -157,34 +144,23 @@ abstract public class CameraEngine {
   abstract public void destroy();
 
   /**
-   * Find out what preview sizes the indicated camera supports.
-   * Subscribe to the PreviewSizesEvent to get the results of
-   * this call asynchronously.
-   *
-   * @param camera the CameraDescriptor of the camera of interest
-   */
-  abstract public void loadAvailablePreviewSizes(CameraDescriptor camera);
-
-  /**
    * Open the requested camera and show a preview on the supplied
    * surface. Subscribe to the OpenEvent to find out when this
    * work is completed.
    *
-   * @param rawCamera the CameraDescriptor of the camera of interest
+   * @param session the session for the camera of interest
    * @param texture the preview surface
-   * @param previewSize size of the requested preview
    */
-  abstract public void open(CameraDescriptor rawCamera,
-                            SurfaceTexture texture,
-                            Size previewSize);
+  abstract public void open(CameraSession session,
+                            SurfaceTexture texture);
 
   /**
    * Close the open camera. Note that this work is done
    * synchronously, while most calls to this class are asynchronous.
    *
-   * @param rawCamera the CameraDescriptor of the camera of interest
+   * @param session the session for the camera of interest
    */
-  abstract public void close(CameraDescriptor rawCamera);
+  abstract public void close(CameraSession session);
 
   /**
    * Take a picture, on the supplied camera, using the picture
@@ -192,10 +168,10 @@ abstract public class CameraEngine {
    * PictureTakenEvent when the request is completed, successfully
    * or unsuccessfully.
    *
-   * @param rawCamera the CameraDescriptor of the camera of interest
+   * @param session the session for the camera of interest
    * @param xact the configuration of the picture to take
    */
-  abstract public void takePicture(CameraDescriptor rawCamera,
+  abstract public void takePicture(CameraSession session,
                                    PictureTransaction xact);
 
   /**

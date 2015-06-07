@@ -1,18 +1,18 @@
-/***
- Copyright (c) 2015 CommonsWare, LLC
-
- Licensed under the Apache License, Version 2.0 (the "License"); you may
- not use this file except in compliance with the License. You may obtain
- a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
+/**
+ * Copyright (c) 2015 CommonsWare, LLC
+ * <p/>
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License. You may obtain
+ * a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * <p/>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-package com.commonsware.cwac.cam2.camera2;
+package com.commonsware.cwac.cam2;
 
 import android.annotation.TargetApi;
 import android.content.Context;
@@ -30,13 +30,11 @@ import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.ImageReader;
-import android.os.*;
+import android.os.Build;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.util.Log;
 import android.view.Surface;
-import com.commonsware.cwac.cam2.CameraDescriptor;
-import com.commonsware.cwac.cam2.CameraEngine;
-import com.commonsware.cwac.cam2.CameraSelectionCriteria;
-import com.commonsware.cwac.cam2.PictureTransaction;
 import com.commonsware.cwac.cam2.util.Size;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -59,12 +57,7 @@ public class CameraTwoEngine extends CameraEngine
       android.os.Process.THREAD_PRIORITY_BACKGROUND);
   final private Handler handler;
   final private Semaphore lock=new Semaphore(1);
-  private CameraDevice cameraDevice=null;
-  private CameraCaptureSession session=null;
-  private CaptureRequest.Builder previewRequestBuilder=null;
   private CountDownLatch closeLatch=null;
-  private CaptureRequest previewRequest;
-  private ImageReader reader;
 
   /**
    * Standard constructor
@@ -73,8 +66,8 @@ public class CameraTwoEngine extends CameraEngine
    */
   public CameraTwoEngine(Context ctxt) {
     mgr=(CameraManager)ctxt.
-                        getApplicationContext().
-                        getSystemService(Context.CAMERA_SERVICE);
+        getApplicationContext().
+        getSystemService(Context.CAMERA_SERVICE);
     handlerThread.start();
     handler=new Handler(handlerThread.getLooper());
   }
@@ -86,6 +79,14 @@ public class CameraTwoEngine extends CameraEngine
   public void destroy() {
     handlerThread.quitSafely();
     getBus().post(new DestroyedEvent());
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public CameraSession.Builder buildSession(CameraDescriptor descriptor) {
+    return (new SessionBuilder(descriptor));
   }
 
   @Override
@@ -108,7 +109,21 @@ public class CameraTwoEngine extends CameraEngine
         try {
           for (String cameraId : mgr.getCameraIdList()) {
             if (isMatch(cameraId, criteria)) {
-              result.add(new Descriptor(cameraId));
+              Descriptor camera=new Descriptor(cameraId);
+
+              result.add(camera);
+
+              CameraCharacteristics c=mgr.getCameraCharacteristics(cameraId);
+              StreamConfigurationMap map=c.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+              android.util.Size[] rawSizes=map.getOutputSizes(SurfaceTexture.class);
+              ArrayList<Size> sizes=new ArrayList<Size>();
+
+              for (android.util.Size size : rawSizes) {
+                sizes.add(new Size(size.getWidth(), size.getHeight()));
+              }
+
+              camera.setPreviewSizes(sizes);
+              camera.setPictureSizes(Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)));
             }
           }
 
@@ -129,23 +144,21 @@ public class CameraTwoEngine extends CameraEngine
    * {@inheritDoc}
    */
   @Override
-  public void open(final CameraDescriptor rawCamera,
-                   final SurfaceTexture texture,
-                   final Size previewSize) {
+  public void open(final CameraSession session,
+                   final SurfaceTexture texture) {
     new Thread() {
       public void run() {
-        Descriptor camera=(Descriptor)rawCamera;
+        Descriptor camera=(Descriptor)session.getDescriptor();
 
         try {
           if (!lock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
             throw new RuntimeException("Time out waiting to lock camera opening.");
           }
+android.util.Log.d(getClass().getSimpleName(), "calling openCamera()");
 
           mgr.openCamera(camera.getId(),
-              new InitPreviewTransaction(camera, new Surface(texture)),
+              new InitPreviewTransaction(session, new Surface(texture)),
               handler);
-
-          getBus().post(new OpenedEvent());
         }
         catch (Exception e) {
           getBus().post(new OpenedEvent(e));
@@ -162,34 +175,35 @@ public class CameraTwoEngine extends CameraEngine
    * {@inheritDoc}
    */
   @Override
-  public void close(final CameraDescriptor rawCamera) {
+  public void close(CameraSession session) {
+    final Session s=(Session)session;
+
     try {
       lock.acquire();
 
-      if (session!=null) {
+      if (s.captureSession != null) {
         closeLatch=new CountDownLatch(1);
-        session.close();
+        s.captureSession.close();
         closeLatch.await(2, TimeUnit.SECONDS);
-        session=null;
+        s.captureSession=null;
       }
 
-      if (cameraDevice!=null) {
-        cameraDevice.close();
-        cameraDevice=null;
+      if (s.cameraDevice != null) {
+        s.cameraDevice.close();
+        s.cameraDevice=null;
       }
 
-      if (reader!=null) {
-        reader.close();
+      if (s.reader != null) {
+        s.reader.close();
       }
 
-      Descriptor camera=(Descriptor)rawCamera;
+      Descriptor camera=(Descriptor)session.getDescriptor();
 
       camera.setDevice(null);
     }
     catch (Exception e) {
       throw new IllegalStateException("Exception closing camera", e);
-    }
-    finally {
+    } finally {
       lock.release();
     }
   }
@@ -197,58 +211,18 @@ public class CameraTwoEngine extends CameraEngine
   /**
    * {@inheritDoc}
    */
-  @Override
-  public void loadAvailablePreviewSizes(final CameraDescriptor rawCamera) {
-    new Thread() {
-      public void run() {
-        ArrayList<Size> result=new ArrayList<Size>();
-        Descriptor camera=(Descriptor)rawCamera;
-
-        try {
-          CameraCharacteristics c=mgr.getCameraCharacteristics(camera.getId());
-          StreamConfigurationMap map=c.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-          android.util.Size[] rawSizes=map.getOutputSizes(SurfaceTexture.class);
-
-          for (android.util.Size size : rawSizes) {
-            result.add(new Size(size.getWidth(), size.getHeight()));
-          }
-
-          // TODO: figure out better spot for following ImageReader stuff
-
-          android.util.Size largest = Collections.max(
-              Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)),
-              new AreaComparator());
-          reader=ImageReader.newInstance(largest.getWidth(),
-              largest.getHeight(), ImageFormat.JPEG, 2);
-          reader.setOnImageAvailableListener(CameraTwoEngine.this,
-              handler);
-
-          getBus().post(new PreviewSizesEvent(result));
-        }
-        catch (Exception e) {
-          getBus().post(new PreviewSizesEvent(e));
-
-          if (isDebug()) {
-            Log.e(getClass().getSimpleName(), "Exception loading preview sizes", e);
-          }
-        }
-      }
-    }.start();
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  public void takePicture(CameraDescriptor rawCamera,
+  public void takePicture(CameraSession session,
                           PictureTransaction xact) {
+    final Session s=(Session)session;
+
     new Thread() {
       public void run() {
         try {
           // This is how to tell the camera to lock focus.
-          previewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
+          s.previewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
               CameraMetadata.CONTROL_AF_TRIGGER_START);
-          session.setRepeatingRequest(previewRequestBuilder.build(),
-              new RequestCaptureTransaction(),
+          s.captureSession.setRepeatingRequest(s.previewRequestBuilder.build(),
+              new RequestCaptureTransaction(s),
               handler);
         }
         catch (Exception e) {
@@ -266,44 +240,51 @@ public class CameraTwoEngine extends CameraEngine
       throws CameraAccessException {
     boolean result=true;
 
-    if (criteria!=null) {
+    if (criteria != null) {
       CameraCharacteristics info=mgr.getCameraCharacteristics(cameraId);
       Integer facing=info.get(CameraCharacteristics.LENS_FACING);
 
-      if ((criteria.getFacing()==CameraSelectionCriteria.Facing.FRONT &&
-          facing!=CameraCharacteristics.LENS_FACING_FRONT) ||
-          (criteria.getFacing()==CameraSelectionCriteria.Facing.BACK &&
-              facing!=CameraCharacteristics.LENS_FACING_BACK)) {
+      if ((criteria.getFacing() == CameraSelectionCriteria.Facing.FRONT &&
+          facing != CameraCharacteristics.LENS_FACING_FRONT) ||
+          (criteria.getFacing() == CameraSelectionCriteria.Facing.BACK &&
+              facing != CameraCharacteristics.LENS_FACING_BACK)) {
         result=false;
       }
     }
 
-    return(result);
+    return (result);
   }
 
   private class InitPreviewTransaction extends CameraDevice.StateCallback {
-    private final Descriptor camera;
+    private final Session s;
     private final Surface surface;
 
-    InitPreviewTransaction(Descriptor camera, Surface surface) {
-      this.camera=camera;
+    InitPreviewTransaction(CameraSession session, Surface surface) {
+      this.s=(Session)session;
       this.surface=surface;
     }
 
     @Override
     public void onOpened(CameraDevice cameraDevice) {
+android.util.Log.d(getClass().getSimpleName(), "onOpened()");
       lock.release();
-      CameraTwoEngine.this.cameraDevice=cameraDevice;
+      s.cameraDevice=cameraDevice;
+      s.reader=ImageReader.newInstance(s.getPictureSize().getWidth(),
+          s.getPictureSize().getHeight(), ImageFormat.JPEG, 2);
+      s.reader.setOnImageAvailableListener(CameraTwoEngine.this,
+          handler);
+
+      Descriptor camera=(Descriptor)s.getDescriptor();
+
       camera.setDevice(cameraDevice);
 
       try {
         cameraDevice.createCaptureSession(
-            Arrays.asList(surface, reader.getSurface()),
-            new StartPreviewTransaction(surface), handler);
+            Arrays.asList(surface, s.reader.getSurface()),
+            new StartPreviewTransaction(s, surface), handler);
       }
       catch (CameraAccessException e) {
-        Log.e(getClass().getSimpleName(), "Exception creating capture session", e);
-        // TODO: raise event, replacing this
+        getBus().post(new OpenedEvent(e));
       }
     }
 
@@ -324,7 +305,7 @@ public class CameraTwoEngine extends CameraEngine
     public void onClosed(CameraDevice camera) {
       super.onClosed(camera);
 
-      if (closeLatch!=null) {
+      if (closeLatch != null) {
         closeLatch.countDown();
       }
     }
@@ -332,31 +313,35 @@ public class CameraTwoEngine extends CameraEngine
 
   private class StartPreviewTransaction extends CameraCaptureSession.StateCallback {
     private final Surface surface;
+    private final Session s;
 
-    StartPreviewTransaction(Surface surface) {
+    StartPreviewTransaction(CameraSession session, Surface surface) {
+      this.s=(Session)session;
       this.surface=surface;
     }
 
     @Override
     public void onConfigured(CameraCaptureSession session) {
+android.util.Log.d(getClass().getSimpleName(), "onConfigured()");
       try {
-        CameraTwoEngine.this.session=session;
+        s.captureSession=session;
 
-        previewRequestBuilder=session.getDevice().createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-        previewRequestBuilder.addTarget(surface);
-        previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
+        s.previewRequestBuilder=session.getDevice().createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+        s.previewRequestBuilder.addTarget(surface);
+        s.previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
             CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-        previewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
+        s.previewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
             CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
         // TODO: offer other flash support
 
-        previewRequest=previewRequestBuilder.build();
+        s.previewRequest=s.previewRequestBuilder.build();
 
-        session.setRepeatingRequest(previewRequest, null, handler);
+        session.setRepeatingRequest(s.previewRequest, null, handler);
+
+        getBus().post(new OpenedEvent());
       }
       catch (CameraAccessException e) {
-        Log.e(getClass().getSimpleName(), "Exception creating capture request", e);
-        // TODO: raise event, replacing this
+        getBus().post(new OpenedEvent(e));
       }
     }
 
@@ -367,9 +352,14 @@ public class CameraTwoEngine extends CameraEngine
   }
 
   private class RequestCaptureTransaction extends CameraCaptureSession.CaptureCallback {
+    private final Session s;
     boolean isWaitingForFocus=true;
     boolean isWaitingForPrecapture=false;
     boolean haveWeStartedCapture=false;
+
+    RequestCaptureTransaction(CameraSession session) {
+      this.s=(Session)session;
+    }
 
     @Override
     public void onCaptureProgressed(CameraCaptureSession session,
@@ -397,43 +387,40 @@ public class CameraTwoEngine extends CameraEngine
             CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED == autoFocusState) {
           Integer state=result.get(CaptureResult.CONTROL_AE_STATE);
 
-          if (state==null ||
-              state==CaptureResult.CONTROL_AE_STATE_CONVERGED) {
+          if (state == null ||
+              state == CaptureResult.CONTROL_AE_STATE_CONVERGED) {
             isWaitingForPrecapture=false;
             haveWeStartedCapture=true;
-            capture();
-          }
-          else {
+            capture(s);
+          } else {
             isWaitingForPrecapture=true;
-            precapture();
+            precapture(s);
           }
         }
-      }
-      else if (isWaitingForPrecapture) {
+      } else if (isWaitingForPrecapture) {
         Integer state=result.get(CaptureResult.CONTROL_AE_STATE);
 
-        if (state==null ||
-            state==CaptureResult.CONTROL_AE_STATE_PRECAPTURE ||
-            state==CaptureRequest.CONTROL_AE_STATE_FLASH_REQUIRED) {
+        if (state == null ||
+            state == CaptureResult.CONTROL_AE_STATE_PRECAPTURE ||
+            state == CaptureRequest.CONTROL_AE_STATE_FLASH_REQUIRED) {
           isWaitingForPrecapture=false;
         }
-      }
-      else if (!haveWeStartedCapture) {
+      } else if (!haveWeStartedCapture) {
         Integer state=result.get(CaptureResult.CONTROL_AE_STATE);
 
-        if (state==null ||
-            state!=CaptureResult.CONTROL_AE_STATE_PRECAPTURE) {
+        if (state == null ||
+            state != CaptureResult.CONTROL_AE_STATE_PRECAPTURE) {
           haveWeStartedCapture=true;
-          capture();
+          capture(s);
         }
       }
     }
 
-    private void precapture() {
+    private void precapture(Session s) {
       try {
-        previewRequestBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,
+        s.previewRequestBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,
             CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_START);
-        session.capture(previewRequestBuilder.build(), this,
+        s.captureSession.capture(s.previewRequestBuilder.build(), this,
             handler);
       }
       catch (Exception e) {
@@ -445,12 +432,12 @@ public class CameraTwoEngine extends CameraEngine
       }
     }
 
-    private void capture() {
+    private void capture(Session s) {
       try {
         CaptureRequest.Builder captureBuilder=
-            cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+            s.cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
 
-        captureBuilder.addTarget(reader.getSurface());
+        captureBuilder.addTarget(s.reader.getSurface());
         captureBuilder.set(CaptureRequest.CONTROL_AF_MODE,
             CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
         captureBuilder.set(CaptureRequest.CONTROL_AE_MODE,
@@ -462,9 +449,9 @@ public class CameraTwoEngine extends CameraEngine
         captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, ORIENTATIONS.get(rotation));
 */
 
-        session.stopRepeating();
-        session.capture(captureBuilder.build(),
-            new CapturePictureTransaction(), null);
+        s.captureSession.stopRepeating();
+        s.captureSession.capture(captureBuilder.build(),
+            new CapturePictureTransaction(s), null);
       }
       catch (Exception e) {
         getBus().post(new PictureTakenEvent(e));
@@ -477,6 +464,12 @@ public class CameraTwoEngine extends CameraEngine
   }
 
   private class CapturePictureTransaction extends CameraCaptureSession.CaptureCallback {
+    private final Session s;
+
+    CapturePictureTransaction(CameraSession session) {
+      this.s=(Session)session;
+    }
+
     @Override
     public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
       // TODO: something useful with the picture
@@ -490,13 +483,13 @@ public class CameraTwoEngine extends CameraEngine
 
     private void unlockFocus() {
       try {
-        previewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
+        s.previewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
             CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
-        previewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
+        s.previewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
             CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
-        session.capture(previewRequestBuilder.build(), null,
+        s.captureSession.capture(s.previewRequestBuilder.build(), null,
             handler);
-        session.setRepeatingRequest(previewRequest, null, handler);
+        s.captureSession.setRepeatingRequest(s.previewRequest, null, handler);
       }
       catch (CameraAccessException e) {
         getBus().post(new PictureTakenEvent(e));
@@ -508,13 +501,81 @@ public class CameraTwoEngine extends CameraEngine
     }
   }
 
-  private static class AreaComparator implements Comparator<android.util.Size> {
+  private static class AreaComparator implements Comparator<Size> {
     @Override
-    public int compare(android.util.Size lhs, android.util.Size rhs) {
-      long lhArea=(long)lhs.getWidth()*lhs.getHeight();
+    public int compare(Size lhs, Size rhs) {
+      long lhArea=(long)lhs.getWidth() * lhs.getHeight();
       long rhArea=(long)rhs.getWidth() * rhs.getHeight();
 
-      return(Long.signum(lhArea-rhArea));
+      return (Long.signum(lhArea - rhArea));
+    }
+  }
+
+  static class Descriptor implements CameraDescriptor {
+    private String cameraId;
+    private CameraDevice device;
+    private ArrayList<Size> pictureSizes;
+    private ArrayList<Size> previewSizes;
+
+    private Descriptor(String cameraId) {
+      this.cameraId=cameraId;
+    }
+
+    public String getId() {
+      return (cameraId);
+    }
+
+    private void setDevice(CameraDevice device) {
+      this.device=device;
+    }
+
+    private CameraDevice getDevice() {
+      return (device);
+    }
+
+    @Override
+    public boolean isPictureFormatSupported(int format) {
+      return (ImageFormat.JPEG == format);
+    }
+
+    @Override
+    public ArrayList<Size> getPreviewSizes() {
+      return (previewSizes);
+    }
+
+    private void setPreviewSizes(ArrayList<Size> sizes) {
+      previewSizes=sizes;
+    }
+
+    @Override
+    public ArrayList<Size> getPictureSizes() {
+      return (pictureSizes);
+    }
+
+    private void setPictureSizes(List<android.util.Size> sizes) {
+      pictureSizes=new ArrayList<Size>(sizes.size());
+
+      for (android.util.Size size : sizes) {
+        pictureSizes.add(new Size(size.getWidth(), size.getHeight()));
+      }
+    }
+  }
+
+  private static class Session extends CameraSession {
+    CameraDevice cameraDevice=null;
+    CameraCaptureSession captureSession=null;
+    CaptureRequest.Builder previewRequestBuilder=null;
+    CaptureRequest previewRequest;
+    ImageReader reader;
+
+    private Session(CameraDescriptor descriptor) {
+      super(descriptor);
+    }
+  }
+
+  private static class SessionBuilder extends CameraSession.Builder {
+    private SessionBuilder(CameraDescriptor descriptor) {
+      super(new Session(descriptor));
     }
   }
 }

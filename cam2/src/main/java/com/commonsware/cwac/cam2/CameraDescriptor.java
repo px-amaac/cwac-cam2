@@ -14,11 +14,36 @@
 
 package com.commonsware.cwac.cam2;
 
+import android.graphics.ImageFormat;
+import com.commonsware.cwac.cam2.util.Size;
+import java.util.ArrayList;
+
 /**
  * A representation of a camera. Specific camera engines will
  * have their own descriptors, which they can use for tracking
  * IDs or other information about the camera. From the standpoint
- * of the public API, a descriptor should be fairly opaque.
+ * of the public API, a descriptor should be fairly opaque, supplying
+ * information about the camera capabilities, but nothing more.
  */
 public interface CameraDescriptor {
+  /**
+   * @return The possible preview sizes for the camera, in no
+   * particular order
+   */
+  ArrayList<Size> getPreviewSizes();
+
+  /**
+   * @return The possible picture sizes for the camera, in no
+   * particular order
+   */
+  ArrayList<Size> getPictureSizes();
+
+  /**
+   * Indicates if the camera (and this library) supports a
+   * particular image format for pictures.
+   *
+   * @param format an ImageFormat value (e.g., ImageFormat.JPEG)
+   * @return true if supported, false otherwise
+   */
+  boolean isPictureFormatSupported(int format);
 }

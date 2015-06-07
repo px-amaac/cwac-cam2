@@ -22,6 +22,7 @@ import android.content.res.Resources;
 import android.os.Build;
 import android.util.DisplayMetrics;
 import android.view.ViewConfiguration;
+import com.commonsware.cwac.cam2.CameraDescriptor;
 
 /**
  * Home of static utility methods used by the library and
@@ -75,5 +76,25 @@ public class Utils {
         cfg.smallestScreenWidthDp < 600);
 
     return(!canMove || dm.widthPixels < dm.heightPixels);
+  }
+
+  public static Size getLargestPictureSize(CameraDescriptor descriptor) {
+    Size result=null;
+
+    for (Size size : descriptor.getPictureSizes()) {
+      if (result == null) {
+        result=size;
+      }
+      else {
+        int resultArea=result.getWidth() * result.getHeight();
+        int newArea=size.getWidth() * size.getHeight();
+
+        if (newArea > resultArea) {
+          result=size;
+        }
+      }
+    }
+
+    return(result);
   }
 }

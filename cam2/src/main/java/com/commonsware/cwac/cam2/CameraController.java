@@ -14,9 +14,11 @@
 
 package com.commonsware.cwac.cam2;
 
+import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
 import com.commonsware.cwac.cam2.util.Size;
+import com.commonsware.cwac.cam2.util.Utils;
 import de.greenrobot.event.EventBus;
 
 /**
@@ -28,7 +30,7 @@ public class CameraController implements CameraView.StateCallback {
   private CameraDescriptor backCamera;
   private CameraDescriptor frontCamera;
   private CameraView cv;
-  private Size previewSize;
+  private CameraSession session;
 
   /**
    * @return the engine being used by this fragment to access
@@ -96,9 +98,12 @@ public class CameraController implements CameraView.StateCallback {
    * the camera preview to stop.
    */
   public void stop() {
-    engine.close(backCamera);
+    if (session!=null) {
+      engine.close(session);
+      session=null;
 
-    // TODO: support multiple cameras
+      // TODO: support multiple cameras
+    }
   }
 
   /**
@@ -134,6 +139,7 @@ public class CameraController implements CameraView.StateCallback {
    */
   @Override
   public void onReady(CameraView cv) {
+android.util.Log.d(getClass().getSimpleName(), "onReady()");
     open();
   }
 
@@ -150,68 +156,67 @@ public class CameraController implements CameraView.StateCallback {
   }
 
   public void takePicture() {
-    engine.takePicture(backCamera, new PictureTransaction());
+    engine.takePicture(session, new PictureTransaction());
   }
 
   private void open() {
-    if (previewSize==null) {
-      engine.loadAvailablePreviewSizes(backCamera);
+    Size previewSize=null;
+
+    if (backCamera!=null && cv.getWidth()>0 && cv.getHeight()>0) {
+      // TODO: support other cameras
+      // TODO: optional limit preview to same aspect ratio as chosen picture size
+
+      Size largest=null;
+      long currentLargestArea=0;
+      Size smallestBiggerThanPreview=null;
+      long currentSmallestArea=Integer.MAX_VALUE;
+
+      for (Size size : backCamera.getPreviewSizes()) {
+        long currentArea=size.getWidth()*size.getHeight();
+
+        if (largest==null || size.getWidth()*size.getHeight()>currentLargestArea) {
+          largest=size;
+          currentLargestArea=currentArea;
+        }
+
+        if (size.getWidth()>=cv.getWidth() && size.getHeight()>=cv.getHeight()) {
+          if (smallestBiggerThanPreview==null || currentArea<currentSmallestArea) {
+            smallestBiggerThanPreview=size;
+            currentSmallestArea=currentArea;
+          }
+        }
+      }
+
+      previewSize=(smallestBiggerThanPreview==null
+          ? largest
+          : smallestBiggerThanPreview);
+
+      cv.setPreviewSize(previewSize);
     }
-    else {
-      openForRealz();
+
+    SurfaceTexture texture=cv.getSurfaceTexture();
+
+    if (previewSize!=null && texture!=null) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+        texture.setDefaultBufferSize(cv.getWidth(), cv.getHeight());
+      }
+
+      session=engine.buildSession(backCamera).previewSize(previewSize)
+          .pictureFormat(ImageFormat.JPEG)
+          .pictureSize(Utils.getLargestPictureSize(backCamera)).build();
+
+      engine.open(session, texture);
+
+      // TODO: support other cameras
     }
   }
 
   @SuppressWarnings("unused")
   public void onEventMainThread(CameraEngine.CameraDescriptorsEvent event) {
     if (event.descriptors.size()>0) {
+android.util.Log.d(getClass().getSimpleName(), "onEventMainThread() CameraDescriptorsEvent work");
       backCamera=event.descriptors.get(0);
+      open();
     }
-  }
-
-  @SuppressWarnings("unused")
-  public void onEventMainThread(CameraEngine.PreviewSizesEvent event) {
-    // TODO: support other cameras
-    // TODO: optional limit preview to same aspect ratio as chosen picture size
-
-    Size largest=null;
-    long currentLargestArea=0;
-    Size smallestBiggerThanPreview=null;
-    long currentSmallestArea=Integer.MAX_VALUE;
-
-    for (Size size : event.sizes) {
-      long currentArea=size.getWidth()*size.getHeight();
-
-      if (largest==null || size.getWidth()*size.getHeight()>currentLargestArea) {
-        largest=size;
-        currentLargestArea=currentArea;
-      }
-
-      if (size.getWidth()>=cv.getWidth() && size.getHeight()>=cv.getHeight()) {
-        if (smallestBiggerThanPreview==null || currentArea<currentSmallestArea) {
-          smallestBiggerThanPreview=size;
-          currentSmallestArea=currentArea;
-        }
-      }
-    }
-
-    previewSize=(smallestBiggerThanPreview==null
-        ? largest
-        : smallestBiggerThanPreview);
-
-    cv.setPreviewSize(previewSize);
-    openForRealz();
-  }
-
-  private void openForRealz() {
-    SurfaceTexture texture=cv.getSurfaceTexture();
-
-    if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.JELLY_BEAN_MR1) {
-      texture.setDefaultBufferSize(cv.getWidth(), cv.getHeight());
-    }
-
-    engine.open(backCamera, texture, previewSize);
-
-    // TODO: support other cameras
   }
 }
