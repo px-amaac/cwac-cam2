@@ -14,6 +14,7 @@
 
 package com.commonsware.cwac.cam2;
 
+import android.content.Context;
 import com.commonsware.cwac.cam2.util.Size;
 
 /**
@@ -34,14 +35,25 @@ public class CameraSession {
   private Size pictureSize;
   private Size previewSize;
   private int pictureFormat;
+  private Context ctxt;
 
   /**
    * Constructor.
    *
+   * @param ctxt an Android Context to use for accessing system stuff
    * @param descriptor the camera to use for this session
    */
-  CameraSession(CameraDescriptor descriptor) {
+  CameraSession(Context ctxt, CameraDescriptor descriptor) {
+    this.ctxt=ctxt.getApplicationContext();
     this.descriptor=descriptor;
+  }
+
+  /**
+   * @return an Android Context suitable for looking up filesystem
+   * paths and the like
+   */
+  public Context getContext() {
+    return(ctxt);
   }
 
   /**

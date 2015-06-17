@@ -139,7 +139,6 @@ public class CameraController implements CameraView.StateCallback {
    */
   @Override
   public void onReady(CameraView cv) {
-android.util.Log.d(getClass().getSimpleName(), "onReady()");
     open();
   }
 
@@ -155,8 +154,15 @@ android.util.Log.d(getClass().getSimpleName(), "onReady()");
     stop();
   }
 
-  public void takePicture() {
-    engine.takePicture(session, new PictureTransaction());
+  /**
+   * Takes a picture, in accordance with the details supplied
+   * in the PictureTransaction. Subscribe to the
+   * PictureTakenEvent to get the results of the picture.
+   *
+   * @param xact a PictureTransaction describing what should be taken
+   */
+  public void takePicture(PictureTransaction xact) {
+    engine.takePicture(session, xact);
   }
 
   private void open() {
@@ -201,7 +207,7 @@ android.util.Log.d(getClass().getSimpleName(), "onReady()");
         texture.setDefaultBufferSize(cv.getWidth(), cv.getHeight());
       }
 
-      session=engine.buildSession(backCamera).previewSize(previewSize)
+      session=engine.buildSession(cv.getContext(), backCamera).previewSize(previewSize)
           .pictureFormat(ImageFormat.JPEG)
           .pictureSize(Utils.getLargestPictureSize(backCamera)).build();
 
@@ -214,7 +220,6 @@ android.util.Log.d(getClass().getSimpleName(), "onReady()");
   @SuppressWarnings("unused")
   public void onEventMainThread(CameraEngine.CameraDescriptorsEvent event) {
     if (event.descriptors.size()>0) {
-android.util.Log.d(getClass().getSimpleName(), "onEventMainThread() CameraDescriptorsEvent work");
       backCamera=event.descriptors.get(0);
       open();
     }

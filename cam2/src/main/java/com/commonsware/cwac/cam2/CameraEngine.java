@@ -19,6 +19,10 @@ import android.graphics.SurfaceTexture;
 import android.os.Build;
 import android.util.Log;
 import java.util.List;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import de.greenrobot.event.EventBus;
 
 /**
@@ -29,6 +33,11 @@ import de.greenrobot.event.EventBus;
 abstract public class CameraEngine {
   private EventBus bus=EventBus.getDefault();
   private boolean isDebug=false;
+  private LinkedBlockingQueue<Runnable> queue=new LinkedBlockingQueue<Runnable>();
+  private ThreadPoolExecutor pool;
+  private static final int CORE_POOL_SIZE=1;
+  private static final int MAX_POOL_SIZE=Runtime.getRuntime().availableProcessors();
+  private static final int KEEP_ALIVE_SECONDS=60;
 
   private static class CrashableEvent {
     /**
@@ -104,8 +113,11 @@ abstract public class CameraEngine {
    * an exception accessing the camera.
    */
   public static class PictureTakenEvent extends CrashableEvent {
-    public PictureTakenEvent() {
+    private ImageContext imageContext=null;
+
+    public PictureTakenEvent(ImageContext imageContext) {
       super();
+      this.imageContext=imageContext;
     }
 
     public PictureTakenEvent(Exception exception) {
@@ -119,11 +131,13 @@ abstract public class CameraEngine {
    * indicate your desired preview size, picture size, and
    * so forth.
    *
+   * @param ctxt an Android Context for accessing system stuff
    * @param descriptor the CameraDescriptor for which we want
    *                   a session
    * @return a Builder to build that session
    */
-  abstract public CameraSession.Builder buildSession(CameraDescriptor descriptor);
+  abstract public CameraSession.Builder buildSession(Context ctxt,
+                                                     CameraDescriptor descriptor);
 
   /**
    * Loads a roster of the available cameras for this engine,
@@ -221,5 +235,18 @@ abstract public class CameraEngine {
    */
   public boolean isDebug() {
     return(isDebug);
+  }
+
+  public ThreadPoolExecutor getThreadPool() {
+    if (pool==null) {
+      pool=new ThreadPoolExecutor(CORE_POOL_SIZE, MAX_POOL_SIZE,
+          KEEP_ALIVE_SECONDS, TimeUnit.SECONDS, queue);
+    }
+
+    return(pool);
+  }
+
+  public void setThreadPool(ThreadPoolExecutor pool) {
+    this.pool=pool;
   }
 }

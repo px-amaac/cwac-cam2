@@ -14,6 +14,7 @@
 
 package com.commonsware.cwac.cam2;
 
+import android.content.Context;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
@@ -33,20 +34,21 @@ public class ClassicCameraEngine extends CameraEngine {
    * {@inheritDoc}
    */
   @Override
-  public CameraSession.Builder buildSession(CameraDescriptor descriptor) {
-    return(new SessionBuilder(descriptor));
+  public CameraSession.Builder buildSession(Context ctxt, CameraDescriptor descriptor) {
+    return(new SessionBuilder(ctxt, descriptor));
   }
 
   /**
    * {@inheritDoc}
    */
   public void loadCameraDescriptors(final CameraSelectionCriteria criteria) {
-    new Thread() {
+    getThreadPool().execute(new Runnable() {
+      @Override
       public void run() {
         int count=Camera.getNumberOfCameras();
         List<CameraDescriptor> result=new ArrayList<CameraDescriptor>();
 
-        for (int cameraId=0; cameraId<count; cameraId++) {
+        for (int cameraId=0; cameraId < count; cameraId++) {
           if (isMatch(cameraId, criteria)) {
             Descriptor descriptor=new Descriptor(cameraId);
 
@@ -75,7 +77,7 @@ public class ClassicCameraEngine extends CameraEngine {
 
         getBus().post(new CameraEngine.CameraDescriptorsEvent(result));
       }
-    }.start();
+    });
   }
 
   /**
@@ -97,14 +99,15 @@ public class ClassicCameraEngine extends CameraEngine {
    * {@inheritDoc}
    */
   @Override
-  public void takePicture(final CameraSession session, PictureTransaction xact) {
-    new Thread() {
+  public void takePicture(final CameraSession session, final PictureTransaction xact) {
+    getThreadPool().execute(new Runnable() {
+      @Override
       public void run() {
         Descriptor descriptor=(Descriptor)session.getDescriptor();
         Camera camera=descriptor.getCamera();
 
         try {
-          camera.takePicture(null, null, new TakePictureTransaction());
+          camera.takePicture(null, null, new TakePictureTransaction(session.getContext(), xact));
         }
         catch (Exception e) {
           getBus().post(new PictureTakenEvent(e));
@@ -114,7 +117,7 @@ public class ClassicCameraEngine extends CameraEngine {
           }
         }
       }
-    }.start();
+    });
   }
 
   /**
@@ -131,12 +134,13 @@ public class ClassicCameraEngine extends CameraEngine {
   @Override
   public void open(final CameraSession session,
                    final SurfaceTexture texture) {
-    new Thread() {
+    getThreadPool().execute(new Runnable() {
+      @Override
       public void run() {
         Descriptor descriptor=(Descriptor)session.getDescriptor();
         Camera camera=descriptor.getCamera();
 
-        if (camera==null) {
+        if (camera == null) {
           camera=Camera.open(descriptor.getCameraId());
           descriptor.setCamera(camera);
         }
@@ -173,7 +177,7 @@ public class ClassicCameraEngine extends CameraEngine {
           }
         }
       }
-    }.start();
+    });
   }
 
   private boolean isMatch(int cameraId, CameraSelectionCriteria criteria) {
@@ -195,10 +199,23 @@ public class ClassicCameraEngine extends CameraEngine {
   }
 
   private class TakePictureTransaction implements Camera.PictureCallback {
+    private final PictureTransaction xact;
+    private final Context ctxt;
+
+    TakePictureTransaction(Context ctxt, PictureTransaction xact) {
+      this.ctxt=ctxt.getApplicationContext();
+      this.xact=xact;
+    }
+
     @Override
-    public void onPictureTaken(byte[] bytes, Camera camera) {
-      getBus().post(new PictureTakenEvent());
-      camera.startPreview();
+    public void onPictureTaken(final byte[] bytes, final Camera camera) {
+      getThreadPool().execute(new Runnable() {
+        @Override
+        public void run() {
+          getBus().post(new PictureTakenEvent(xact.process(new ImageContext(ctxt, bytes))));
+          camera.startPreview();
+        }
+      });
     }
   }
 
@@ -249,14 +266,14 @@ public class ClassicCameraEngine extends CameraEngine {
   }
 
   private static class Session extends CameraSession {
-    private Session(CameraDescriptor descriptor) {
-      super(descriptor);
+    private Session(Context ctxt, CameraDescriptor descriptor) {
+      super(ctxt, descriptor);
     }
   }
 
   private static class SessionBuilder extends CameraSession.Builder {
-    private SessionBuilder(CameraDescriptor descriptor) {
-      super(new Session(descriptor));
+    private SessionBuilder(Context ctxt, CameraDescriptor descriptor) {
+      super(new Session(ctxt, descriptor));
     }
   }
 }

@@ -16,13 +16,16 @@ package com.commonsware.cwac.cam2;
 
 import android.app.Activity;
 import android.app.Fragment;
+import android.graphics.Picture;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import com.commonsware.cwac.cam2.util.Utils;
 import com.github.polok.flipview.FlipView;
+import java.io.File;
 import de.greenrobot.event.EventBus;
 
 /**
@@ -134,7 +137,17 @@ public class CameraFragment extends Fragment {
     cv.setOnLongClickListener(new View.OnLongClickListener() {
       @Override
       public boolean onLongClick(View view) {
-        ctrl.takePicture();
+        File dcim=Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
+        File dir=new File(dcim, "Cam2");
+
+        dir.mkdirs();
+
+        File testOutput=new File(dir, "test.jpg");
+
+        PictureTransaction xact=new PictureTransaction.Builder()
+            .toFile(testOutput.getAbsolutePath(), true).build();
+
+        ctrl.takePicture(xact);
 
         // getContract().completeRequest();
 

@@ -14,9 +14,117 @@
 
 package com.commonsware.cwac.cam2;
 
+import android.os.Bundle;
+import java.util.ArrayList;
+
 /**
  * Class encapsulating the information needed to take a picture
- * using a camera.
+ * using a camera. Use a PictureTransaction.Builder to create
+ * an instance. Beyond that, this is an opaque blob to you.
  */
 public class PictureTransaction {
+  private ArrayList<ImageProcessor> processors=new ArrayList<ImageProcessor>();
+  private Bundle props=new Bundle();
+
+  private PictureTransaction() {
+    // use the builder, please
+  }
+
+  ImageContext process(ImageContext imageContext) {
+    for (ImageProcessor processor : processors) {
+      processor.process(this, imageContext);
+    }
+
+    return(imageContext);
+  }
+
+  ImageProcessor findProcessorByTag(String tag) {
+    for (ImageProcessor processor : processors) {
+      if (processor.getTag().equals(tag)) {
+        return(processor);
+      }
+    }
+
+    return(null);
+  }
+
+  /**
+   * Accesses a Bundle of properties for use by the chain of
+   * ImageProcessors. This is public for the use by ImageProcessor
+   * implementations. Using these properties in any other fashion
+   * is beyond the scope of the supported API.
+   *
+   * @return the properties Bundle
+   */
+  public Bundle getProperties() {
+    return(props);
+  }
+
+  /**
+   * Builder class to create an instance of a PictureTransaction.
+   */
+  public static class Builder {
+    private PictureTransaction result=new PictureTransaction();
+
+    /**
+     * @return the PictureTransaction built up by the Builder API
+     */
+    public PictureTransaction build() {
+      return(result);
+    }
+
+    /**
+     * Adds an ImageProcessor to the chain of processors for
+     * manipulating the picture.
+     *
+     * @param processor the ImageProcessor to add to the chain
+     * @return the Builder, for more API calls
+     */
+    public Builder append(ImageProcessor processor) {
+      result.processors.add(processor);
+
+      return(this);
+    }
+
+    /**
+     * Indicates that the picture should be written to the
+     * designated filesystem path. Use the two-parameter
+     * version for pictures to be written to external or
+     * removable storage, where you want the picture to
+     * be indexed by the MediaStore.
+     *
+     * @param path filesystem path, to which you have write
+     *             access, where the photo should be taken
+     * @return the Builder, for more API calls
+     */
+    public Builder toFile(String path) {
+      return(toFile(path, false));
+    }
+
+    /**
+     * Indicates that the picture should be written to the
+     * designated filesystem path. This should be a full path
+     * including filename.
+     *
+     * @param path filesystem path, to which you have write
+     *             access, where the photo should be taken
+     * @param updateMediaStore true if MediaStore should be
+     *                         notified about the file, false
+     *                         otherwise
+     * @return the Builder, for more API calls
+     */
+    public Builder toFile(String path, boolean updateMediaStore) {
+      JPEGWriter jpeg=(JPEGWriter)result.findProcessorByTag(JPEGWriter.class.getCanonicalName());
+
+      if (jpeg==null) {
+        jpeg=new JPEGWriter();
+        append(jpeg);
+      }
+
+      result.getProperties().putString(JPEGWriter.PROP_PATH, path);
+      result.getProperties().putBoolean(JPEGWriter.PROP_UPDATE_MEDIA_STORE, updateMediaStore);
+
+      return(this);
+    }
+  }
 }

@@ -29,6 +29,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.Image;
 import android.media.ImageReader;
 import android.os.Build;
 import android.os.Handler;
@@ -36,22 +37,22 @@ import android.os.HandlerThread;
 import android.util.Log;
 import android.view.Surface;
 import com.commonsware.cwac.cam2.util.Size;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import de.greenrobot.event.EventBus;
 
 /**
  * Implementation of a CameraEngine that supports the
  * Android 5.0+ android.hardware.camera2 API.
  */
 @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-public class CameraTwoEngine extends CameraEngine
-    implements ImageReader.OnImageAvailableListener {
+public class CameraTwoEngine extends CameraEngine {
   private CameraManager mgr;
   final private HandlerThread handlerThread=new HandlerThread(getClass().getSimpleName(),
       android.os.Process.THREAD_PRIORITY_BACKGROUND);
@@ -85,16 +86,8 @@ public class CameraTwoEngine extends CameraEngine
    * {@inheritDoc}
    */
   @Override
-  public CameraSession.Builder buildSession(CameraDescriptor descriptor) {
-    return (new SessionBuilder(descriptor));
-  }
-
-  @Override
-  public void onImageAvailable(ImageReader imageReader) {
-    // TODO: something with the image
-    getBus().post(new PictureTakenEvent());
-
-    Log.e(getClass().getSimpleName(), "onImageAvailable");
+  public CameraSession.Builder buildSession(Context ctxt, CameraDescriptor descriptor) {
+    return (new SessionBuilder(ctxt, descriptor));
   }
 
   /**
@@ -102,7 +95,8 @@ public class CameraTwoEngine extends CameraEngine
    */
   @Override
   public void loadCameraDescriptors(final CameraSelectionCriteria criteria) {
-    new Thread() {
+    getThreadPool().execute(new Runnable() {
+      @Override
       public void run() {
         List<CameraDescriptor> result=new ArrayList<CameraDescriptor>();
 
@@ -137,7 +131,7 @@ public class CameraTwoEngine extends CameraEngine
           }
         }
       }
-    }.start();
+    });
   }
 
   /**
@@ -146,7 +140,8 @@ public class CameraTwoEngine extends CameraEngine
   @Override
   public void open(final CameraSession session,
                    final SurfaceTexture texture) {
-    new Thread() {
+    getThreadPool().execute(new Runnable() {
+      @Override
       public void run() {
         Descriptor camera=(Descriptor)session.getDescriptor();
 
@@ -154,8 +149,6 @@ public class CameraTwoEngine extends CameraEngine
           if (!lock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
             throw new RuntimeException("Time out waiting to lock camera opening.");
           }
-android.util.Log.d(getClass().getSimpleName(), "calling openCamera()");
-
           mgr.openCamera(camera.getId(),
               new InitPreviewTransaction(session, new Surface(texture)),
               handler);
@@ -168,7 +161,7 @@ android.util.Log.d(getClass().getSimpleName(), "calling openCamera()");
           }
         }
       }
-    }.start();
+    });
   }
 
   /**
@@ -215,7 +208,11 @@ android.util.Log.d(getClass().getSimpleName(), "calling openCamera()");
                           PictureTransaction xact) {
     final Session s=(Session)session;
 
-    new Thread() {
+    s.reader.setOnImageAvailableListener(new TakePictureTransaction(session.getContext(), getBus(), xact),
+        handler);
+
+    getThreadPool().execute(new Runnable() {
+      @Override
       public void run() {
         try {
           // This is how to tell the camera to lock focus.
@@ -233,7 +230,7 @@ android.util.Log.d(getClass().getSimpleName(), "calling openCamera()");
           }
         }
       }
-    }.start();
+    });
   }
 
   private boolean isMatch(String cameraId, CameraSelectionCriteria criteria)
@@ -266,13 +263,10 @@ android.util.Log.d(getClass().getSimpleName(), "calling openCamera()");
 
     @Override
     public void onOpened(CameraDevice cameraDevice) {
-android.util.Log.d(getClass().getSimpleName(), "onOpened()");
       lock.release();
       s.cameraDevice=cameraDevice;
       s.reader=ImageReader.newInstance(s.getPictureSize().getWidth(),
           s.getPictureSize().getHeight(), ImageFormat.JPEG, 2);
-      s.reader.setOnImageAvailableListener(CameraTwoEngine.this,
-          handler);
 
       Descriptor camera=(Descriptor)s.getDescriptor();
 
@@ -322,7 +316,6 @@ android.util.Log.d(getClass().getSimpleName(), "onOpened()");
 
     @Override
     public void onConfigured(CameraCaptureSession session) {
-android.util.Log.d(getClass().getSimpleName(), "onConfigured()");
       try {
         s.captureSession=session;
 
@@ -397,7 +390,8 @@ android.util.Log.d(getClass().getSimpleName(), "onConfigured()");
             precapture(s);
           }
         }
-      } else if (isWaitingForPrecapture) {
+      }
+      else if (isWaitingForPrecapture) {
         Integer state=result.get(CaptureResult.CONTROL_AE_STATE);
 
         if (state == null ||
@@ -405,7 +399,8 @@ android.util.Log.d(getClass().getSimpleName(), "onConfigured()");
             state == CaptureRequest.CONTROL_AE_STATE_FLASH_REQUIRED) {
           isWaitingForPrecapture=false;
         }
-      } else if (!haveWeStartedCapture) {
+      }
+      else if (!haveWeStartedCapture) {
         Integer state=result.get(CaptureResult.CONTROL_AE_STATE);
 
         if (state == null ||
@@ -568,14 +563,38 @@ android.util.Log.d(getClass().getSimpleName(), "onConfigured()");
     CaptureRequest previewRequest;
     ImageReader reader;
 
-    private Session(CameraDescriptor descriptor) {
-      super(descriptor);
+    private Session(Context ctxt, CameraDescriptor descriptor) {
+      super(ctxt, descriptor);
     }
   }
 
   private static class SessionBuilder extends CameraSession.Builder {
-    private SessionBuilder(CameraDescriptor descriptor) {
-      super(new Session(descriptor));
+    private SessionBuilder(Context ctxt, CameraDescriptor descriptor) {
+      super(new Session(ctxt, descriptor));
+    }
+  }
+
+  private static class TakePictureTransaction implements ImageReader.OnImageAvailableListener {
+    private final EventBus bus;
+    private final PictureTransaction xact;
+    private final Context ctxt;
+
+    TakePictureTransaction(Context ctxt, EventBus bus, PictureTransaction xact) {
+      this.bus=bus;
+      this.xact=xact;
+      this.ctxt=ctxt.getApplicationContext();
+    }
+
+    @Override
+    public void onImageAvailable(ImageReader imageReader) {
+      Image image=imageReader.acquireNextImage();
+      ByteBuffer buffer=image.getPlanes()[0].getBuffer();
+      byte[] bytes=new byte[buffer.remaining()];
+
+      buffer.get(bytes);
+      image.close();
+
+      bus.post(new PictureTakenEvent(xact.process(new ImageContext(ctxt, bytes))));
     }
   }
 }
