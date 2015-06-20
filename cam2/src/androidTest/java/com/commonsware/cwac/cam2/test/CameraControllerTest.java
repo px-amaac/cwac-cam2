@@ -33,7 +33,12 @@ public class CameraControllerTest {
 
   @Before
   public void init() {
-    ctrl.setEngine(engine);
+    CameraSelectionCriteria criteria=
+        new CameraSelectionCriteria.Builder()
+            .facing(CameraSelectionCriteria.Facing.BACK_IF_AVAILABLE)
+            .build();
+
+    ctrl.setEngine(engine, criteria);
   }
 
 /*

@@ -42,6 +42,10 @@ public class ClassicCameraEngine extends CameraEngine {
    * {@inheritDoc}
    */
   public void loadCameraDescriptors(final CameraSelectionCriteria criteria) {
+    loadCameraDescriptors(criteria, false);
+  }
+
+  private void loadCameraDescriptors(final CameraSelectionCriteria criteria, final boolean relax) {
     getThreadPool().execute(new Runnable() {
       @Override
       public void run() {
@@ -49,7 +53,7 @@ public class ClassicCameraEngine extends CameraEngine {
         List<CameraDescriptor> result=new ArrayList<CameraDescriptor>();
 
         for (int cameraId=0; cameraId < count; cameraId++) {
-          if (isMatch(cameraId, criteria)) {
+          if (relax || isMatch(cameraId, criteria)) {
             Descriptor descriptor=new Descriptor(cameraId);
 
             result.add(descriptor);
@@ -75,7 +79,12 @@ public class ClassicCameraEngine extends CameraEngine {
           }
         }
 
-        getBus().post(new CameraEngine.CameraDescriptorsEvent(result));
+        if (result.size()>0 || relax || criteria.getFacing().isExact()) {
+          getBus().post(new CameraEngine.CameraDescriptorsEvent(result));
+        }
+        else {
+          loadCameraDescriptors(criteria, true);
+        }
       }
     });
   }
@@ -181,17 +190,17 @@ public class ClassicCameraEngine extends CameraEngine {
   }
 
   private boolean isMatch(int cameraId, CameraSelectionCriteria criteria) {
-    boolean result=true;
+    boolean result=false;
     Camera.CameraInfo info=new Camera.CameraInfo();
 
     if (criteria!=null) {
       Camera.getCameraInfo(cameraId, info);
 
-      if ((criteria.getFacing()==CameraSelectionCriteria.Facing.FRONT &&
-          info.facing!=Camera.CameraInfo.CAMERA_FACING_FRONT) ||
-          (criteria.getFacing()==CameraSelectionCriteria.Facing.BACK &&
-              info.facing!=Camera.CameraInfo.CAMERA_FACING_BACK)) {
-        result=false;
+      if ((criteria.getFacing().isFront() &&
+          info.facing==Camera.CameraInfo.CAMERA_FACING_FRONT) ||
+          (!criteria.getFacing().isFront() &&
+              info.facing==Camera.CameraInfo.CAMERA_FACING_BACK)) {
+        result=true;
       }
     }
 

@@ -95,6 +95,10 @@ public class CameraTwoEngine extends CameraEngine {
    */
   @Override
   public void loadCameraDescriptors(final CameraSelectionCriteria criteria) {
+      loadCameraDescriptors(criteria, false);
+  }
+
+  private void loadCameraDescriptors(final CameraSelectionCriteria criteria, final boolean relax) {
     getThreadPool().execute(new Runnable() {
       @Override
       public void run() {
@@ -102,7 +106,7 @@ public class CameraTwoEngine extends CameraEngine {
 
         try {
           for (String cameraId : mgr.getCameraIdList()) {
-            if (isMatch(cameraId, criteria)) {
+            if (relax || isMatch(cameraId, criteria)) {
               Descriptor camera=new Descriptor(cameraId);
 
               result.add(camera);
@@ -121,7 +125,12 @@ public class CameraTwoEngine extends CameraEngine {
             }
           }
 
-          getBus().post(new CameraEngine.CameraDescriptorsEvent(result));
+          if (result.size()>0 || relax || criteria.getFacing().isExact()) {
+            getBus().post(new CameraEngine.CameraDescriptorsEvent(result));
+          }
+          else {
+            loadCameraDescriptors(criteria, true);
+          }
         }
         catch (CameraAccessException e) {
           getBus().post(new CameraEngine.CameraDescriptorsEvent(e));
@@ -235,21 +244,21 @@ public class CameraTwoEngine extends CameraEngine {
 
   private boolean isMatch(String cameraId, CameraSelectionCriteria criteria)
       throws CameraAccessException {
-    boolean result=true;
+    boolean result=false;
 
     if (criteria != null) {
       CameraCharacteristics info=mgr.getCameraCharacteristics(cameraId);
       Integer facing=info.get(CameraCharacteristics.LENS_FACING);
 
-      if ((criteria.getFacing() == CameraSelectionCriteria.Facing.FRONT &&
-          facing != CameraCharacteristics.LENS_FACING_FRONT) ||
-          (criteria.getFacing() == CameraSelectionCriteria.Facing.BACK &&
-              facing != CameraCharacteristics.LENS_FACING_BACK)) {
-        result=false;
+      if ((criteria.getFacing().isFront() &&
+          facing==CameraCharacteristics.LENS_FACING_FRONT) ||
+          (!criteria.getFacing().isFront() &&
+              facing==CameraCharacteristics.LENS_FACING_BACK)) {
+        result=true;
       }
     }
 
-    return (result);
+    return(result);
   }
 
   private class InitPreviewTransaction extends CameraDevice.StateCallback {

@@ -27,8 +27,7 @@ import de.greenrobot.event.EventBus;
  */
 public class CameraController implements CameraView.StateCallback {
   private CameraEngine engine;
-  private CameraDescriptor backCamera;
-  private CameraDescriptor frontCamera;
+  private CameraDescriptor camera;
   private CameraView cv;
   private CameraSession session;
 
@@ -48,37 +47,13 @@ public class CameraController implements CameraView.StateCallback {
    * @param engine the engine to be used by this fragment to access
    * the camera(s) on the device
    */
-  public void setEngine(CameraEngine engine) {
+  public void setEngine(CameraEngine engine, CameraSelectionCriteria criteria) {
     this.engine=engine;
 
     EventBus.getDefault().register(this);
 
-/*
-    CameraSelectionCriteria criteria=
-        new CameraSelectionCriteria.Builder()
-            .facing(CameraSelectionCriteria.Facing.FRONT).build();
-    List<CameraDescriptor> cameras=engine.loadCameraDescriptors(criteria);
-
-    if (cameras.size()>0) {
-      frontCamera=cameras.get(0);
-    }
-*/
-
-    CameraSelectionCriteria criteria=
-        new CameraSelectionCriteria.Builder()
-            .facing(CameraSelectionCriteria.Facing.BACK).build();
     engine.loadCameraDescriptors(criteria);
   }
-
-  /**
-   * @return true if the device has both a front-facing camera and
-   * a back-facing camera
-   */
-/*
-  public boolean hasBothCameras() {
-    return(frontCamera!=null && backCamera!=null);
-  }
-*/
 
   /**
    * Call this from onStart() of an activity or fragment, or from
@@ -168,8 +143,7 @@ public class CameraController implements CameraView.StateCallback {
   private void open() {
     Size previewSize=null;
 
-    if (backCamera!=null && cv.getWidth()>0 && cv.getHeight()>0) {
-      // TODO: support other cameras
+    if (camera!=null && cv.getWidth()>0 && cv.getHeight()>0) {
       // TODO: optional limit preview to same aspect ratio as chosen picture size
 
       Size largest=null;
@@ -177,7 +151,7 @@ public class CameraController implements CameraView.StateCallback {
       Size smallestBiggerThanPreview=null;
       long currentSmallestArea=Integer.MAX_VALUE;
 
-      for (Size size : backCamera.getPreviewSizes()) {
+      for (Size size : camera.getPreviewSizes()) {
         long currentArea=size.getWidth()*size.getHeight();
 
         if (largest==null || size.getWidth()*size.getHeight()>currentLargestArea) {
@@ -207,9 +181,9 @@ public class CameraController implements CameraView.StateCallback {
         texture.setDefaultBufferSize(cv.getWidth(), cv.getHeight());
       }
 
-      session=engine.buildSession(cv.getContext(), backCamera).previewSize(previewSize)
+      session=engine.buildSession(cv.getContext(), camera).previewSize(previewSize)
           .pictureFormat(ImageFormat.JPEG)
-          .pictureSize(Utils.getLargestPictureSize(backCamera)).build();
+          .pictureSize(Utils.getLargestPictureSize(camera)).build();
 
       engine.open(session, texture);
 
@@ -220,8 +194,15 @@ public class CameraController implements CameraView.StateCallback {
   @SuppressWarnings("unused")
   public void onEventMainThread(CameraEngine.CameraDescriptorsEvent event) {
     if (event.descriptors.size()>0) {
-      backCamera=event.descriptors.get(0);
+      camera=event.descriptors.get(0);
       open();
     }
+    else {
+      EventBus.getDefault().post(new NoSuchCameraEvent());
+    }
+  }
+
+  public static class NoSuchCameraEvent {
+
   }
 }

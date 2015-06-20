@@ -24,7 +24,9 @@ import android.provider.MediaStore;
 import android.support.v4.app.FragmentActivity;
 import com.commonsware.cwac.cam2.CameraController;
 import com.commonsware.cwac.cam2.CameraEngine;
+import com.commonsware.cwac.cam2.CameraSelectionCriteria;
 import com.commonsware.cwac.cam2.util.Utils;
+import de.greenrobot.event.EventBus;
 
 /**
  * Stock activity for taking pictures. Supports the same
@@ -33,6 +35,8 @@ import com.commonsware.cwac.cam2.util.Utils;
  */
 public class CameraActivity extends FragmentActivity
     implements CameraFragment.Contract {
+  public static final String EXTRA_FACING="facing";
+
   /**
    * The fragment implementing the bulk of the actual UI
    */
@@ -100,8 +104,17 @@ public class CameraActivity extends FragmentActivity
       frag=new CameraFragment();
 
       CameraController ctrl=new CameraController();
+      CameraSelectionCriteria.Facing facing=
+          (CameraSelectionCriteria.Facing)getIntent().getSerializableExtra(EXTRA_FACING);
 
-      ctrl.setEngine(CameraEngine.buildInstance(this));
+      if (facing==null) {
+        facing=CameraSelectionCriteria.Facing.BACK_IF_AVAILABLE;
+      }
+
+      CameraSelectionCriteria criteria=
+          new CameraSelectionCriteria.Builder().facing(facing).build();
+
+      ctrl.setEngine(CameraEngine.buildInstance(this), criteria);
       frag.setController(ctrl);
 
       getSupportFragmentManager()
@@ -111,6 +124,33 @@ public class CameraActivity extends FragmentActivity
     }
 
     getOutputUri(); // TODO: do something with this
+  }
+
+  /**
+   * Standard lifecycle method, for when the fragment moves into
+   * the started state. Passed along to the CameraController.
+   */
+  @Override
+  public void onStart() {
+    super.onStart();
+
+    EventBus.getDefault().register(this);
+  }
+
+  /**
+   * Standard lifecycle method, for when the fragment moves into
+   * the stopped state. Passed along to the CameraController.
+   */
+  @Override
+  public void onStop() {
+    EventBus.getDefault().unregister(this);
+
+    super.onStop();
+  }
+
+  @SuppressWarnings("unused")
+  public void onEventMainThread(CameraController.NoSuchCameraEvent event) {
+    finish();
   }
 
   /**
