@@ -17,6 +17,7 @@ package com.commonsware.cwac.cam2;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
+import com.commonsware.cwac.cam2.plugin.SizeAndFormatPlugin;
 import com.commonsware.cwac.cam2.util.Size;
 import com.commonsware.cwac.cam2.util.Utils;
 import de.greenrobot.event.EventBus;
@@ -181,13 +182,14 @@ public class CameraController implements CameraView.StateCallback {
         texture.setDefaultBufferSize(cv.getWidth(), cv.getHeight());
       }
 
-      session=engine.buildSession(cv.getContext(), camera).previewSize(previewSize)
-          .pictureFormat(ImageFormat.JPEG)
-          .pictureSize(Utils.getLargestPictureSize(camera)).build();
+      session=engine
+          .buildSession(cv.getContext(), camera)
+          .addPlugin(new SizeAndFormatPlugin(previewSize,
+              Utils.getLargestPictureSize(camera),
+              ImageFormat.JPEG))
+          .build();
 
       engine.open(session, texture);
-
-      // TODO: support other cameras
     }
   }
 

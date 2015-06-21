@@ -102,8 +102,7 @@ public class CameraActivity extends Activity
           (CameraSelectionCriteria.Facing)getIntent().getSerializableExtra(EXTRA_FACING);
 
       if (facing==null) {
-//        facing=CameraSelectionCriteria.Facing.BACK_IF_AVAILABLE;
-        facing=CameraSelectionCriteria.Facing.FRONT;
+        facing=CameraSelectionCriteria.Facing.BACK_IF_AVAILABLE;
       }
 
       CameraSelectionCriteria criteria=

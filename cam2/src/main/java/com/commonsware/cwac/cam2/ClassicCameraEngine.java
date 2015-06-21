@@ -156,23 +156,7 @@ public class ClassicCameraEngine extends CameraEngine {
 
         try {
           camera.setPreviewTexture(texture);
-
-          Camera.Parameters params=camera.getParameters();
-
-          params.setPreviewSize(session.getPreviewSize().getWidth(),
-              session.getPreviewSize().getHeight());
-
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-            //      parameters.setRecordingHint(getHost().getRecordingHint() != CameraHost.RecordingHint.STILL_ONLY);
-          }
-
-          // TODO: get all other parameters changes here
-
-          params.setPictureSize(session.getPictureSize().getWidth(),
-              session.getPictureSize().getHeight());
-          params.setPictureFormat(session.getPictureFormat());
-
-          camera.setParameters(params);
+          camera.setParameters(((Session)session).configure());
           camera.startPreview();
           getBus().post(new OpenedEvent());
         }
@@ -277,6 +261,22 @@ public class ClassicCameraEngine extends CameraEngine {
   private static class Session extends CameraSession {
     private Session(Context ctxt, CameraDescriptor descriptor) {
       super(ctxt, descriptor);
+    }
+
+    Camera.Parameters configure() {
+      final Descriptor descriptor=(Descriptor)getDescriptor();
+      final Camera camera=descriptor.getCamera();
+      Camera.Parameters params=camera.getParameters();
+
+      for (CameraPlugin plugin : getPlugins()) {
+        ClassicCameraConfigurator configurator=plugin.buildConfigurator(ClassicCameraConfigurator.class);
+
+        if (configurator!=null) {
+          params=configurator.configure(camera, params);
+        }
+      }
+
+      return(params);
     }
   }
 

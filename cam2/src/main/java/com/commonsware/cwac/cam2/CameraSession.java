@@ -15,7 +15,7 @@
 package com.commonsware.cwac.cam2;
 
 import android.content.Context;
-import com.commonsware.cwac.cam2.util.Size;
+import java.util.ArrayList;
 
 /**
  * Class representing a session with a camera. While
@@ -32,10 +32,8 @@ import com.commonsware.cwac.cam2.util.Size;
  */
 public class CameraSession {
   private final CameraDescriptor descriptor;
-  private Size pictureSize;
-  private Size previewSize;
-  private int pictureFormat;
   private Context ctxt;
+  private final ArrayList<CameraPlugin> plugins=new ArrayList<CameraPlugin>();
 
   /**
    * Constructor.
@@ -64,27 +62,10 @@ public class CameraSession {
   }
 
   /**
-   * @return the desired picture size, out of the available
-   * picture sizes for this camera
+   * @return the roster of plugins configured for this session
    */
-  public Size getPictureSize() {
-    return(pictureSize);
-  }
-
-  /**
-   * @return the desired preview size, out of the available
-   * preview sizes for this camera
-   */
-  public Size getPreviewSize() {
-    return(previewSize);
-  }
-
-  /**
-   * @return the desired picture format, as an ImageFormat value
-   * (e.g., ImageFormat.JPEG)
-   */
-  public int getPictureFormat() {
-    return(pictureFormat);
+  protected ArrayList<CameraPlugin> getPlugins() {
+    return(plugins);
   }
 
   /**
@@ -99,55 +80,15 @@ public class CameraSession {
     }
 
     /**
-     * Establish the picture size to use. Must be a size that
-     * the CameraDescriptor for this session claims to support.
+     * Adds a plugin to the chain of plugins for this session.
+     * Pre-configure the plugin before adding.
      *
-     * @param pictureSize the desired picture size
-     * @return the builder, for more building
+     * @param plugin a CameraPlugin instance
+     * @return the Builder, for chained calls
      */
-    public Builder pictureSize(Size pictureSize) {
-      if (session.descriptor.getPictureSizes().contains(pictureSize)) {
-        session.pictureSize=pictureSize;
-      }
-      else {
-        throw new IllegalArgumentException("Requested picture size is not one that the camera supports");
-      }
-
-      return(this);
-    }
-
-    /**
-     * Establish the preview size to use. Must be a size that
-     * the CameraDescriptor for this session claims to support.
-     *
-     * @param previewSize the desired preview size
-     * @return the builder, for more building
-     */
-    public Builder previewSize(Size previewSize) {
-      if (session.descriptor.getPreviewSizes().contains(previewSize)) {
-        session.previewSize=previewSize;
-      }
-      else {
-        throw new IllegalArgumentException("Requested preview size is not one that the camera supports");
-      }
-
-      return(this);
-    }
-
-    /**
-     * Establish the picture format to use. Must be a format that
-     * the CameraDescriptor for this session claims to support.
-     *
-     * @param format an ImageFormat value (e.g., ImageFormat.JPEG)
-     * @return the builder, for more building
-     */
-    public Builder pictureFormat(int format) {
-      if (session.descriptor.isPictureFormatSupported(format)) {
-        session.pictureFormat=format;
-      }
-      else {
-        throw new IllegalArgumentException("Requested picture format is not one that the camera supports");
-      }
+    public Builder addPlugin(CameraPlugin plugin) {
+      plugin.validate(session);
+      session.plugins.add(plugin);
 
       return(this);
     }

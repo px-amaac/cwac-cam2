@@ -274,8 +274,7 @@ public class CameraTwoEngine extends CameraEngine {
     public void onOpened(CameraDevice cameraDevice) {
       lock.release();
       s.cameraDevice=cameraDevice;
-      s.reader=ImageReader.newInstance(s.getPictureSize().getWidth(),
-          s.getPictureSize().getHeight(), ImageFormat.JPEG, 2);
+      s.reader=s.buildImageReader();
 
       Descriptor camera=(Descriptor)s.getDescriptor();
 
@@ -574,6 +573,22 @@ public class CameraTwoEngine extends CameraEngine {
 
     private Session(Context ctxt, CameraDescriptor descriptor) {
       super(ctxt, descriptor);
+    }
+
+    ImageReader buildImageReader() {
+      ImageReader result=null;
+
+      for (CameraPlugin plugin : getPlugins()) {
+        CameraTwoConfigurator configurator=plugin.buildConfigurator(CameraTwoConfigurator.class);
+
+        if (configurator!=null) {
+          result=configurator.buildImageReader();
+        }
+
+        if (result!=null) break;
+      }
+
+      return(result);
     }
   }
 
