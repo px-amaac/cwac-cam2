@@ -155,8 +155,8 @@ public class ClassicCameraEngine extends CameraEngine {
         }
 
         try {
-          camera.setPreviewTexture(texture);
           camera.setParameters(((Session)session).configure());
+          camera.setPreviewTexture(texture);
           camera.startPreview();
           getBus().post(new OpenedEvent());
         }
@@ -267,12 +267,15 @@ public class ClassicCameraEngine extends CameraEngine {
       final Descriptor descriptor=(Descriptor)getDescriptor();
       final Camera camera=descriptor.getCamera();
       Camera.Parameters params=camera.getParameters();
+      Camera.CameraInfo info=new Camera.CameraInfo();
+
+      Camera.getCameraInfo(descriptor.getCameraId(), info);
 
       for (CameraPlugin plugin : getPlugins()) {
         ClassicCameraConfigurator configurator=plugin.buildConfigurator(ClassicCameraConfigurator.class);
 
         if (configurator!=null) {
-          params=configurator.configure(camera, params);
+          params=configurator.configure(info, camera, params);
         }
       }
 

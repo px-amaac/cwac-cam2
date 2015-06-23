@@ -17,6 +17,7 @@ package com.commonsware.cwac.cam2;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
+import com.commonsware.cwac.cam2.plugin.OrientationPlugin;
 import com.commonsware.cwac.cam2.plugin.SizeAndFormatPlugin;
 import com.commonsware.cwac.cam2.util.Size;
 import com.commonsware.cwac.cam2.util.Utils;
@@ -76,6 +77,7 @@ public class CameraController implements CameraView.StateCallback {
   public void stop() {
     if (session!=null) {
       engine.close(session);
+      session.destroy();
       session=null;
 
       // TODO: support multiple cameras
@@ -187,6 +189,7 @@ public class CameraController implements CameraView.StateCallback {
           .addPlugin(new SizeAndFormatPlugin(previewSize,
               Utils.getLargestPictureSize(camera),
               ImageFormat.JPEG))
+          .addPlugin(new OrientationPlugin(cv.getContext()))
           .build();
 
       engine.open(session, texture);

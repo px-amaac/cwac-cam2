@@ -16,6 +16,8 @@ package com.commonsware.cwac.cam2.plugin;
 
 import android.annotation.TargetApi;
 import android.hardware.Camera;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CaptureRequest;
 import android.media.ImageReader;
 import android.os.Build;
 import com.commonsware.cwac.cam2.CameraConfigurator;
@@ -23,6 +25,8 @@ import com.commonsware.cwac.cam2.CameraPlugin;
 import com.commonsware.cwac.cam2.CameraSession;
 import com.commonsware.cwac.cam2.CameraTwoConfigurator;
 import com.commonsware.cwac.cam2.ClassicCameraConfigurator;
+import com.commonsware.cwac.cam2.SimpleCameraTwoConfigurator;
+import com.commonsware.cwac.cam2.SimpleClassicCameraConfigurator;
 import com.commonsware.cwac.cam2.util.Size;
 
 /**
@@ -67,7 +71,7 @@ public class SizeAndFormatPlugin implements CameraPlugin {
    */
   @Override
   public void validate(CameraSession session) {
-    if (!session.getDescriptor().getPictureSizes().contains(previewSize)) {
+    if (!session.getDescriptor().getPreviewSizes().contains(previewSize)) {
       throw new IllegalStateException("Requested preview size is not one that the camera supports");
     }
 
@@ -76,12 +80,21 @@ public class SizeAndFormatPlugin implements CameraPlugin {
     }
   }
 
-  class Classic implements ClassicCameraConfigurator {
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void destroy() {
+    // not required
+  }
+
+  class Classic extends SimpleClassicCameraConfigurator {
     /**
      * {@inheritDoc}
      */
     @Override
-    public Camera.Parameters configure(Camera camera, Camera.Parameters params) {
+    public Camera.Parameters configure(Camera.CameraInfo info,
+                                       Camera camera, Camera.Parameters params) {
       params.setPreviewSize(previewSize.getWidth(), previewSize.getHeight());
       params.setPictureSize(pictureSize.getWidth(), pictureSize.getHeight());
       params.setPictureFormat(pictureFormat);
@@ -91,7 +104,7 @@ public class SizeAndFormatPlugin implements CameraPlugin {
   }
 
   @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-  class Two implements CameraTwoConfigurator {
+  class Two extends SimpleCameraTwoConfigurator {
     /**
      * {@inheritDoc}
      */

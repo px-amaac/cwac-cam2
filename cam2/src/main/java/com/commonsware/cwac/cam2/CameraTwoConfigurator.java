@@ -14,6 +14,8 @@
 
 package com.commonsware.cwac.cam2;
 
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CaptureRequest;
 import android.media.ImageReader;
 
 /**
@@ -27,4 +29,17 @@ public interface CameraTwoConfigurator extends CameraConfigurator {
    * the ImageReader
    */
   ImageReader buildImageReader();
+
+  /**
+   * Updates a CaptureRequest to reflect what the plugin needs.
+   *
+   * @param cc CameraCharacteristics for the camera being used
+   * @param facingFront true if the camera is front-facing, false
+   *                    otherwise
+   * @param captureBuilder the builder for the request, to be
+   *                       configured
+   */
+  void addToCaptureRequest(CameraCharacteristics cc,
+                           boolean facingFront,
+                           CaptureRequest.Builder captureBuilder);
 }

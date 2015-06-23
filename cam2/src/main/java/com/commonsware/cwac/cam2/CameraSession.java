@@ -68,6 +68,12 @@ public class CameraSession {
     return(plugins);
   }
 
+  public void destroy() {
+    for (CameraPlugin plugin : getPlugins()) {
+      plugin.destroy();
+    }
+  }
+
   /**
    * Class to build an instance of a CameraSession. Get an instance
    * from buildSession() on your chosen CameraEngine.

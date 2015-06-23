@@ -111,8 +111,8 @@ public class CameraTwoEngine extends CameraEngine {
 
               result.add(camera);
 
-              CameraCharacteristics c=mgr.getCameraCharacteristics(cameraId);
-              StreamConfigurationMap map=c.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+              CameraCharacteristics cc=mgr.getCameraCharacteristics(cameraId);
+              StreamConfigurationMap map=cc.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
               android.util.Size[] rawSizes=map.getOutputSizes(SurfaceTexture.class);
               ArrayList<Size> sizes=new ArrayList<Size>();
 
@@ -122,6 +122,7 @@ public class CameraTwoEngine extends CameraEngine {
 
               camera.setPreviewSizes(sizes);
               camera.setPictureSizes(Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)));
+              camera.setFacingFront(cc.get(CameraCharacteristics.LENS_FACING)==CameraCharacteristics.LENS_FACING_FRONT);
             }
           }
 
@@ -446,11 +447,10 @@ public class CameraTwoEngine extends CameraEngine {
         captureBuilder.set(CaptureRequest.CONTROL_AE_MODE,
             CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
 
-        // Orientation
-/*
-        int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
-        captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, ORIENTATIONS.get(rotation));
-*/
+        Descriptor camera=(Descriptor)s.getDescriptor();
+        CameraCharacteristics cc=mgr.getCameraCharacteristics(camera.cameraId);
+
+        s.addToCaptureRequest(cc, camera.isFacingFront, captureBuilder);
 
         s.captureSession.stopRepeating();
         s.captureSession.capture(captureBuilder.build(),
@@ -519,6 +519,7 @@ public class CameraTwoEngine extends CameraEngine {
     private CameraDevice device;
     private ArrayList<Size> pictureSizes;
     private ArrayList<Size> previewSizes;
+    private boolean isFacingFront;
 
     private Descriptor(String cameraId) {
       this.cameraId=cameraId;
@@ -562,6 +563,10 @@ public class CameraTwoEngine extends CameraEngine {
         pictureSizes.add(new Size(size.getWidth(), size.getHeight()));
       }
     }
+
+    private void setFacingFront(boolean isFacingFront) {
+      this.isFacingFront=isFacingFront;
+    }
   }
 
   private static class Session extends CameraSession {
@@ -589,6 +594,18 @@ public class CameraTwoEngine extends CameraEngine {
       }
 
       return(result);
+    }
+
+    void addToCaptureRequest(CameraCharacteristics cc,
+                             boolean isFacingFront,
+                             CaptureRequest.Builder captureBuilder) {
+      for (CameraPlugin plugin : getPlugins()) {
+        CameraTwoConfigurator configurator=plugin.buildConfigurator(CameraTwoConfigurator.class);
+
+        if (configurator!=null) {
+          configurator.addToCaptureRequest(cc, isFacingFront, captureBuilder);
+        }
+      }
     }
   }
 

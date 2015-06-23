@@ -50,4 +50,6 @@ public interface CameraPlugin {
    * @param session the session to validate against
    */
   void validate(CameraSession session);
+
+  void destroy();
 }

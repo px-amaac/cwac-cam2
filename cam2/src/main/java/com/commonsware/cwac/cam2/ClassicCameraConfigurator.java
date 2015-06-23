@@ -25,6 +25,7 @@ public interface ClassicCameraConfigurator extends CameraConfigurator {
    * Update the Camera.Parameters based on whatever this particular
    * configurator is set up to do.
    *
+   * @param info CameraInfo for the camera that we are configuring
    * @param camera the camera we are configuring
    * @param params the current camera parameters, as originally
    *               retrieved from the camera and as modified by
@@ -32,5 +33,6 @@ public interface ClassicCameraConfigurator extends CameraConfigurator {
    * @return the same Camera.Parameters as was passed in as params,
    * just with modified contents
    */
-  Camera.Parameters configure(Camera camera, Camera.Parameters params);
+  Camera.Parameters configure(Camera.CameraInfo info,
+                              Camera camera, Camera.Parameters params);
 }
