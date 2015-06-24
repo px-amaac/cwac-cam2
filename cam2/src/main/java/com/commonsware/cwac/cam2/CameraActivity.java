@@ -33,7 +33,20 @@ import de.greenrobot.event.EventBus;
  */
 public class CameraActivity extends Activity
     implements CameraFragment.Contract {
+  /**
+   * Extra name for indicating what facing rule for the
+   * camera you wish to use. The value should be a
+   * CameraSelectionCriteria.Facing instance.
+   */
   public static final String EXTRA_FACING="facing";
+
+  /**
+   * Extra name for indicating whether extra diagnostic
+   * information should be reported, particularly for errors.
+   * Default is false.
+   */
+  public static final String EXTRA_DEBUG_ENABLED="debug";
+
   private CameraFragment frag;
 
   /**
@@ -109,7 +122,7 @@ public class CameraActivity extends Activity
           new CameraSelectionCriteria.Builder().facing(facing).build();
 
       ctrl.setEngine(CameraEngine.buildInstance(this), criteria);
-      ctrl.getEngine().setDebug(true);
+      ctrl.getEngine().setDebug(getIntent().getBooleanExtra(EXTRA_DEBUG_ENABLED, false));
       frag.setController(ctrl);
 
       getFragmentManager()

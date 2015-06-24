@@ -15,13 +15,16 @@
 package com.commonsware.cwac.cam2.util;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.Context;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.os.Build;
 import android.util.DisplayMetrics;
 import android.view.ViewConfiguration;
+import com.commonsware.cwac.cam2.CameraActivity;
 import com.commonsware.cwac.cam2.CameraDescriptor;
 
 /**
@@ -56,6 +59,19 @@ public class Utils {
 
     if (pm.checkPermission(Manifest.permission.CAMERA, ctxt.getPackageName())==PackageManager.PERMISSION_DENIED) {
       throw new IllegalStateException("App lacks the CAMERA permission");
+    }
+
+    if (ctxt instanceof CameraActivity) {
+      try {
+        ActivityInfo info=pm.getActivityInfo(((CameraActivity)ctxt).getComponentName(), 0);
+
+        if (info.exported) {
+          throw new IllegalStateException("A CameraActivity cannot be exported!");
+        }
+      }
+      catch (PackageManager.NameNotFoundException e) {
+        throw new IllegalStateException("Cannot find this activity!", e);
+      }
     }
   }
 
