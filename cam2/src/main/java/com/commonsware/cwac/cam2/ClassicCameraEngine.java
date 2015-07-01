@@ -116,7 +116,13 @@ public class ClassicCameraEngine extends CameraEngine {
         Camera camera=descriptor.getCamera();
 
         try {
-          camera.takePicture(null, null, new TakePictureTransaction(session.getContext(), xact));
+          camera.takePicture(new Camera.ShutterCallback() {
+            @Override
+            public void onShutter() {
+              // empty plays a sound -- go figure
+            }
+          }, null,
+              new TakePictureTransaction(session.getContext(), xact));
         }
         catch (Exception e) {
           getBus().post(new PictureTakenEvent(e));

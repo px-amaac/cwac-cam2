@@ -14,6 +14,7 @@
 
 package com.commonsware.cwac.cam2.support;
 
+import android.support.v4.app.FragmentActivity;
 import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
@@ -21,9 +22,9 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
-import android.support.v4.app.FragmentActivity;
 import com.commonsware.cwac.cam2.CameraController;
 import com.commonsware.cwac.cam2.CameraEngine;
+import com.commonsware.cwac.cam2.CameraFragment;
 import com.commonsware.cwac.cam2.CameraSelectionCriteria;
 import com.commonsware.cwac.cam2.util.Utils;
 import de.greenrobot.event.EventBus;
@@ -34,13 +35,22 @@ import de.greenrobot.event.EventBus;
  * ACTION_IMAGE_CAPTURE.
  */
 public class CameraActivity extends FragmentActivity
-    implements CameraFragment.Contract {
+    implements com.commonsware.cwac.cam2.CameraFragment.Contract {
+  /**
+   * Extra name for indicating what facing rule for the
+   * camera you wish to use. The value should be a
+   * CameraSelectionCriteria.Facing instance.
+   */
   public static final String EXTRA_FACING="facing";
 
   /**
-   * The fragment implementing the bulk of the actual UI
+   * Extra name for indicating whether extra diagnostic
+   * information should be reported, particularly for errors.
+   * Default is false.
    */
-  private CameraFragment frag;
+  public static final String EXTRA_DEBUG_ENABLED="debug";
+
+  private com.commonsware.cwac.cam2.CameraFragment frag;
 
   /**
    * Use this method (or its two-parameter counterpart) to
@@ -97,7 +107,7 @@ public class CameraActivity extends FragmentActivity
 
     Utils.validateEnvironment(this);
 
-    frag=(CameraFragment)getSupportFragmentManager()
+    frag=(com.commonsware.cwac.cam2.CameraFragment)getFragmentManager()
                             .findFragmentById(android.R.id.content);
 
     if (frag==null) {
@@ -115,9 +125,10 @@ public class CameraActivity extends FragmentActivity
           new CameraSelectionCriteria.Builder().facing(facing).build();
 
       ctrl.setEngine(CameraEngine.buildInstance(this), criteria);
+      ctrl.getEngine().setDebug(getIntent().getBooleanExtra(EXTRA_DEBUG_ENABLED, false));
       frag.setController(ctrl);
 
-      getSupportFragmentManager()
+      getFragmentManager()
           .beginTransaction()
           .add(android.R.id.content, frag)
           .commit();
@@ -162,6 +173,11 @@ public class CameraActivity extends FragmentActivity
     setResult(RESULT_OK, new Intent()); // TODO: real result
 
     finish();
+  }
+
+  @Override
+  public void switchCamera() {
+    // TODO
   }
 
   private Uri getOutputUri() {

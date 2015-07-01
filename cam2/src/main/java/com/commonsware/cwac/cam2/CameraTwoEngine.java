@@ -31,6 +31,7 @@ import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
+import android.media.MediaActionSound;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -59,6 +60,7 @@ public class CameraTwoEngine extends CameraEngine {
   final private Handler handler;
   final private Semaphore lock=new Semaphore(1);
   private CountDownLatch closeLatch=null;
+  private MediaActionSound shutter=new MediaActionSound();
 
   /**
    * Standard constructor
@@ -71,6 +73,7 @@ public class CameraTwoEngine extends CameraEngine {
         getSystemService(Context.CAMERA_SERVICE);
     handlerThread.start();
     handler=new Handler(handlerThread.getLooper());
+    shutter.load(MediaActionSound.SHUTTER_CLICK);
   }
 
   /**
@@ -80,6 +83,7 @@ public class CameraTwoEngine extends CameraEngine {
   public void destroy() {
     handlerThread.quitSafely();
     getBus().post(new DestroyedEvent());
+    shutter.release();
   }
 
   /**
@@ -471,6 +475,13 @@ public class CameraTwoEngine extends CameraEngine {
 
     CapturePictureTransaction(CameraSession session) {
       this.s=(Session)session;
+    }
+
+    @Override
+    public void onCaptureStarted(CameraCaptureSession session, CaptureRequest request, long timestamp, long frameNumber) {
+      super.onCaptureStarted(session, request, timestamp, frameNumber);
+
+      shutter.play(MediaActionSound.SHUTTER_CLICK);
     }
 
     @Override

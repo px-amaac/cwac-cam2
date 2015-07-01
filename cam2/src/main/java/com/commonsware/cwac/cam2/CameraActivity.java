@@ -172,6 +172,11 @@ public class CameraActivity extends Activity
     finish();
   }
 
+  @Override
+  public void switchCamera() {
+    // TODO
+  }
+
   private Uri getOutputUri() {
     Uri output=null;
 
