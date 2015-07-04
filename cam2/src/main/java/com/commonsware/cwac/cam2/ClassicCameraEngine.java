@@ -22,6 +22,7 @@ import android.os.Build;
 import android.util.Log;
 import com.commonsware.cwac.cam2.util.Size;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -42,10 +43,6 @@ public class ClassicCameraEngine extends CameraEngine {
    * {@inheritDoc}
    */
   public void loadCameraDescriptors(final CameraSelectionCriteria criteria) {
-    loadCameraDescriptors(criteria, false);
-  }
-
-  private void loadCameraDescriptors(final CameraSelectionCriteria criteria, final boolean relax) {
     getThreadPool().execute(new Runnable() {
       @Override
       public void run() {
@@ -53,38 +50,32 @@ public class ClassicCameraEngine extends CameraEngine {
         List<CameraDescriptor> result=new ArrayList<CameraDescriptor>();
 
         for (int cameraId=0; cameraId < count; cameraId++) {
-          if (relax || isMatch(cameraId, criteria)) {
-            Descriptor descriptor=new Descriptor(cameraId);
+          Descriptor descriptor=new Descriptor(cameraId, getScore(cameraId, criteria));
 
-            result.add(descriptor);
+          result.add(descriptor);
 
-            Camera camera=Camera.open(descriptor.getCameraId());
-            Camera.Parameters params=camera.getParameters();
-            ArrayList<Size> sizes=new ArrayList<Size>();
+          Camera camera=Camera.open(descriptor.getCameraId());
+          Camera.Parameters params=camera.getParameters();
+          ArrayList<Size> sizes=new ArrayList<Size>();
 
-            for (Camera.Size size : params.getSupportedPreviewSizes()) {
-              sizes.add(new Size(size.width, size.height));
-            }
-
-            descriptor.setPreviewSizes(sizes);
-
-            sizes=new ArrayList<Size>();
-
-            for (Camera.Size size : params.getSupportedPictureSizes()) {
-              sizes.add(new Size(size.width, size.height));
-            }
-
-            descriptor.setPictureSizes(sizes);
-            camera.release();
+          for (Camera.Size size : params.getSupportedPreviewSizes()) {
+            sizes.add(new Size(size.width, size.height));
           }
+
+          descriptor.setPreviewSizes(sizes);
+
+          sizes=new ArrayList<Size>();
+
+          for (Camera.Size size : params.getSupportedPictureSizes()) {
+            sizes.add(new Size(size.width, size.height));
+          }
+
+          descriptor.setPictureSizes(sizes);
+          camera.release();
         }
 
-        if (result.size()>0 || relax || criteria.getFacing().isExact()) {
-          getBus().post(new CameraEngine.CameraDescriptorsEvent(result));
-        }
-        else {
-          loadCameraDescriptors(criteria, true);
-        }
+        Collections.sort(result);
+        getBus().post(new CameraEngine.CameraDescriptorsEvent(result));
       }
     });
   }
@@ -179,22 +170,22 @@ public class ClassicCameraEngine extends CameraEngine {
     });
   }
 
-  private boolean isMatch(int cameraId, CameraSelectionCriteria criteria) {
-    boolean result=false;
+  private int getScore(int cameraId, CameraSelectionCriteria criteria) {
+    int score=10;
     Camera.CameraInfo info=new Camera.CameraInfo();
 
     if (criteria!=null) {
       Camera.getCameraInfo(cameraId, info);
 
       if ((criteria.getFacing().isFront() &&
-          info.facing==Camera.CameraInfo.CAMERA_FACING_FRONT) ||
+          info.facing!=Camera.CameraInfo.CAMERA_FACING_FRONT) ||
           (!criteria.getFacing().isFront() &&
-              info.facing==Camera.CameraInfo.CAMERA_FACING_BACK)) {
-        result=true;
+              info.facing!=Camera.CameraInfo.CAMERA_FACING_BACK)) {
+        score=0;
       }
     }
 
-    return(result);
+    return(score);
   }
 
   private class TakePictureTransaction implements Camera.PictureCallback {
@@ -223,9 +214,11 @@ public class ClassicCameraEngine extends CameraEngine {
     private Camera camera;
     private ArrayList<Size> pictureSizes;
     private ArrayList<Size> previewSizes;
+    private final int score;
 
-    private Descriptor(int cameraId) {
+    private Descriptor(int cameraId, int score) {
       this.cameraId=cameraId;
+      this.score=score;
     }
 
     public int getCameraId() {
@@ -238,6 +231,17 @@ public class ClassicCameraEngine extends CameraEngine {
 
     private Camera getCamera() {
       return(camera);
+    }
+
+    @Override
+    public int compareTo(CameraDescriptor descriptor) {
+      // want descending order, not ascending; Integer.compare()
+      // only available on API Level 19+
+
+      int lhs=((Descriptor)descriptor).score;
+      int rhs=score;
+
+      return(lhs < rhs ? -1 : (lhs == rhs ? 0 : 1));
     }
 
     @Override

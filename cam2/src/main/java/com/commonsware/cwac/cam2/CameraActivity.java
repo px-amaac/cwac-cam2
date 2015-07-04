@@ -115,7 +115,7 @@ public class CameraActivity extends Activity
           (CameraSelectionCriteria.Facing)getIntent().getSerializableExtra(EXTRA_FACING);
 
       if (facing==null) {
-        facing=CameraSelectionCriteria.Facing.BACK_IF_AVAILABLE;
+        facing=CameraSelectionCriteria.Facing.BACK;
       }
 
       CameraSelectionCriteria criteria=
@@ -170,11 +170,6 @@ public class CameraActivity extends Activity
     setResult(RESULT_OK, new Intent()); // TODO: real result
 
     finish();
-  }
-
-  @Override
-  public void switchCamera() {
-    // TODO
   }
 
   private Uri getOutputUri() {

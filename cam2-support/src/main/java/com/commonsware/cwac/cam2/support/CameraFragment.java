@@ -34,6 +34,7 @@ import com.commonsware.cwac.cam2.PictureTransaction;
 import com.github.clans.fab.FloatingActionButton;
 import com.github.clans.fab.FloatingActionMenu;
 import java.io.File;
+import java.util.ArrayList;
 import de.greenrobot.event.EventBus;
 
 /**
@@ -51,15 +52,10 @@ public class CameraFragment extends Fragment {
      * action at this point (e.g., set a result and finish).
      */
     void completeRequest();
-
-    /**
-     * Used by CameraFragment to indicate that the user has
-     * requested to switch to another camera.
-     */
-    void switchCamera();
   }
 
   private CameraController ctrl;
+  private ViewGroup previewStack;
 
   /**
    * Standard fragment entry point.
@@ -143,13 +139,11 @@ public class CameraFragment extends Fragment {
    */
   @Override
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-    View v=inflater.inflate(com.commonsware.cwac.cam2.R.layout.cwac_cam2_fragment, container, false);
-    CameraView cv=(CameraView)v.findViewById(com.commonsware.cwac.cam2.R.id.cwac_cam2_camera);
+    View v=inflater.inflate(R.layout.cwac_cam2_fragment, container, false);
 
-    cv.setEngine(ctrl.getEngine());
-    ctrl.setCameraView(cv);
+    previewStack=(ViewGroup)v.findViewById(R.id.cwac_cam2_preview_stack);
 
-    FloatingActionButton fab=(FloatingActionButton)v.findViewById(com.commonsware.cwac.cam2.R.id.cwac_cam2_picture);
+    FloatingActionButton fab=(FloatingActionButton)v.findViewById(R.id.cwac_cam2_picture);
 
     fab.setOnClickListener(new View.OnClickListener() {
       @Override
@@ -168,15 +162,15 @@ public class CameraFragment extends Fragment {
       }
     });
 
-    fab=(FloatingActionButton)v.findViewById(com.commonsware.cwac.cam2.R.id.cwac_cam2_switch_camera);
+    fab=(FloatingActionButton)v.findViewById(R.id.cwac_cam2_switch_camera);
     fab.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View view) {
-        getContract().switchCamera();
+        ctrl.switchCamera();
       }
     });
 
-    changeMenuIconAnimation((FloatingActionMenu)v.findViewById(com.commonsware.cwac.cam2.R.id.cwac_cam2_settings));
+    changeMenuIconAnimation((FloatingActionMenu)v.findViewById(R.id.cwac_cam2_settings));
 
     return(v);
   }
@@ -185,7 +179,7 @@ public class CameraFragment extends Fragment {
    * @return the CameraController this fragment delegates to
    */
   public CameraController getController() {
-    return (ctrl);
+    return(ctrl);
   }
 
   /**
@@ -195,6 +189,25 @@ public class CameraFragment extends Fragment {
    */
   public void setController(CameraController ctrl) {
     this.ctrl=ctrl;
+  }
+
+  @SuppressWarnings("unused")
+  public void onEventMainThread(CameraController.ControllerReadyEvent event) {
+    ArrayList<CameraView> cameraViews=new ArrayList<CameraView>();
+    CameraView cv=(CameraView)previewStack.getChildAt(0);
+
+    cv.setEngine(ctrl.getEngine());
+    cameraViews.add(cv);
+
+    for (int i=1;i<event.getNumberOfCameras();i++) {
+      cv=new CameraView(getActivity());
+      cv.setVisibility(View.INVISIBLE);
+      previewStack.addView(cv);
+      cv.setEngine(ctrl.getEngine());
+      cameraViews.add(cv);
+    }
+
+    ctrl.setCameraViews(cameraViews);
   }
 
   @SuppressWarnings("unused")
@@ -230,8 +243,8 @@ public class CameraFragment extends Fragment {
       @Override
       public void onAnimationStart(Animator animation) {
         v.setImageResource(menu.isOpened()
-            ? com.commonsware.cwac.cam2.R.drawable.cwac_cam2_ic_close
-            : com.commonsware.cwac.cam2.R.drawable.cwac_cam2_ic_action_settings);
+            ? R.drawable.cwac_cam2_ic_close
+            : R.drawable.cwac_cam2_ic_action_settings);
       }
     });
 

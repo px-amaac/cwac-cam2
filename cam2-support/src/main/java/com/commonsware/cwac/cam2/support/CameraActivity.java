@@ -35,7 +35,7 @@ import de.greenrobot.event.EventBus;
  * ACTION_IMAGE_CAPTURE.
  */
 public class CameraActivity extends FragmentActivity
-    implements com.commonsware.cwac.cam2.CameraFragment.Contract {
+    implements CameraFragment.Contract {
   /**
    * Extra name for indicating what facing rule for the
    * camera you wish to use. The value should be a
@@ -118,7 +118,7 @@ public class CameraActivity extends FragmentActivity
           (CameraSelectionCriteria.Facing)getIntent().getSerializableExtra(EXTRA_FACING);
 
       if (facing==null) {
-        facing=CameraSelectionCriteria.Facing.BACK_IF_AVAILABLE;
+        facing=CameraSelectionCriteria.Facing.BACK;
       }
 
       CameraSelectionCriteria criteria=
@@ -173,11 +173,6 @@ public class CameraActivity extends FragmentActivity
     setResult(RESULT_OK, new Intent()); // TODO: real result
 
     finish();
-  }
-
-  @Override
-  public void switchCamera() {
-    // TODO
   }
 
   private Uri getOutputUri() {

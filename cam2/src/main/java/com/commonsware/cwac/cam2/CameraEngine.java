@@ -64,6 +64,10 @@ abstract public class CameraEngine {
    * Subscribe to this event if you use loadCameraDescriptors()
    * to get the results. May include an exception if there was
    * an exception accessing the camera.
+   *
+   * Note that the descriptors will be in a ranked order based
+   * on your requested CameraSelectionCriteria, with the best
+   * match as the 0th element of the list.
    */
   public static class CameraDescriptorsEvent extends CrashableEvent {
     /**
@@ -141,12 +145,12 @@ abstract public class CameraEngine {
 
   /**
    * Loads a roster of the available cameras for this engine,
-   * or the cameras that match the supplied criteria. Subscribe
+   * ranked based on the supplied criteria. Subscribe
    * to the CameraDescriptorsEvent to get the results of this
    * call asynchronously.
    *
-   * @param criteria requirements for the matching cameras, or
-   *                 null to return all cameras
+   * @param criteria preferred camera capabilities, or
+   *                 null for a default ranking
    */
   abstract public void loadCameraDescriptors(CameraSelectionCriteria criteria);
 

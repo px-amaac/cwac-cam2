@@ -30,6 +30,7 @@ import android.widget.ImageView;
 import com.github.clans.fab.FloatingActionButton;
 import com.github.clans.fab.FloatingActionMenu;
 import java.io.File;
+import java.util.ArrayList;
 import de.greenrobot.event.EventBus;
 
 /**
@@ -47,15 +48,10 @@ public class CameraFragment extends Fragment {
      * action at this point (e.g., set a result and finish).
      */
     void completeRequest();
-
-    /**
-     * Used by CameraFragment to indicate that the user has
-     * requested to switch to another camera.
-     */
-    void switchCamera();
   }
 
   private CameraController ctrl;
+  private ViewGroup previewStack;
 
   /**
    * Standard fragment entry point.
@@ -140,10 +136,8 @@ public class CameraFragment extends Fragment {
   @Override
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
     View v=inflater.inflate(R.layout.cwac_cam2_fragment, container, false);
-    CameraView cv=(CameraView)v.findViewById(R.id.cwac_cam2_camera);
 
-    cv.setEngine(ctrl.getEngine());
-    ctrl.setCameraView(cv);
+    previewStack=(ViewGroup)v.findViewById(R.id.cwac_cam2_preview_stack);
 
     FloatingActionButton fab=(FloatingActionButton)v.findViewById(R.id.cwac_cam2_picture);
 
@@ -168,7 +162,7 @@ public class CameraFragment extends Fragment {
     fab.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View view) {
-        getContract().switchCamera();
+        ctrl.switchCamera();
       }
     });
 
@@ -181,7 +175,7 @@ public class CameraFragment extends Fragment {
    * @return the CameraController this fragment delegates to
    */
   public CameraController getController() {
-    return (ctrl);
+    return(ctrl);
   }
 
   /**
@@ -191,6 +185,25 @@ public class CameraFragment extends Fragment {
    */
   public void setController(CameraController ctrl) {
     this.ctrl=ctrl;
+  }
+
+  @SuppressWarnings("unused")
+  public void onEventMainThread(CameraController.ControllerReadyEvent event) {
+    ArrayList<CameraView> cameraViews=new ArrayList<CameraView>();
+    CameraView cv=(CameraView)previewStack.getChildAt(0);
+
+    cv.setEngine(ctrl.getEngine());
+    cameraViews.add(cv);
+
+    for (int i=1;i<event.getNumberOfCameras();i++) {
+      cv=new CameraView(getActivity());
+      cv.setVisibility(View.INVISIBLE);
+      previewStack.addView(cv);
+      cv.setEngine(ctrl.getEngine());
+      cameraViews.add(cv);
+    }
+
+    ctrl.setCameraViews(cameraViews);
   }
 
   @SuppressWarnings("unused")

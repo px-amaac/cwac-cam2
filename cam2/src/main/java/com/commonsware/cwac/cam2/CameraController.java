@@ -17,10 +17,13 @@ package com.commonsware.cwac.cam2;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
+import android.view.View;
 import com.commonsware.cwac.cam2.plugin.OrientationPlugin;
 import com.commonsware.cwac.cam2.plugin.SizeAndFormatPlugin;
 import com.commonsware.cwac.cam2.util.Size;
 import com.commonsware.cwac.cam2.util.Utils;
+import java.util.HashMap;
+import java.util.List;
 import de.greenrobot.event.EventBus;
 
 /**
@@ -29,9 +32,11 @@ import de.greenrobot.event.EventBus;
  */
 public class CameraController implements CameraView.StateCallback {
   private CameraEngine engine;
-  private CameraDescriptor camera;
-  private CameraView cv;
   private CameraSession session;
+  private List<CameraDescriptor> cameras=null;
+  private int currentCamera=0;
+  private final HashMap<CameraDescriptor, CameraView> previews=
+      new HashMap<CameraDescriptor, CameraView>();
 
   /**
    * @return the engine being used by this fragment to access
@@ -64,8 +69,13 @@ public class CameraController implements CameraView.StateCallback {
    * begin after the CameraView is ready.
    */
   public void start() {
-    if (cv.isAvailable()) {
-      open();
+    if (cameras!=null) {
+      CameraDescriptor camera=cameras.get(currentCamera);
+      CameraView cv=getPreview(camera);
+
+      if (cv.isAvailable()) {
+        open();
+      }
     }
   }
 
@@ -79,8 +89,6 @@ public class CameraController implements CameraView.StateCallback {
       engine.close(session);
       session.destroy();
       session=null;
-
-      // TODO: support multiple cameras
     }
   }
 
@@ -99,13 +107,35 @@ public class CameraController implements CameraView.StateCallback {
   }
 
   /**
-   * Setter method for the CameraView that this controller controls
-   *
-   * @param cv a CameraView
+   * Call to switch to the next camera in sequence. Most
+   * devices have only two cameras, and so calling this will
+   * switch the preview and pictures to the camera other than
+   * the one presently being used.
    */
-  public void setCameraView(CameraView cv) {
-    this.cv=cv;
-    cv.setStateCallback(this);
+  public void switchCamera() {
+    if (session!=null) {
+      getPreview(session.getDescriptor()).setVisibility(View.INVISIBLE);
+      stop();
+    }
+
+    currentCamera=getNextCameraIndex();
+    getPreview(cameras.get(currentCamera)).setVisibility(View.VISIBLE);
+    open();
+  }
+
+  /**
+   * Supplies CameraView objects for each camera. After this,
+   * we can open() the camera.
+   *
+   * @param cameraViews a list of CameraViews
+   */
+  public void setCameraViews(List<CameraView> cameraViews) {
+    for (int i=0; i < cameras.size(); i++) {
+      previews.put(cameras.get(i), cameraViews.get(i));
+      cameraViews.get(i).setStateCallback(this);
+    }
+
+    open(); // in case visible CameraView is already ready
   }
 
   /**
@@ -117,7 +147,9 @@ public class CameraController implements CameraView.StateCallback {
    */
   @Override
   public void onReady(CameraView cv) {
-    open();
+    if (cameras!=null) {
+      open();
+    }
   }
 
   /**
@@ -143,12 +175,26 @@ public class CameraController implements CameraView.StateCallback {
     engine.takePicture(session, xact);
   }
 
+  private CameraView getPreview(CameraDescriptor camera) {
+    return(previews.get(camera));
+  }
+
+  private int getNextCameraIndex() {
+    int next=currentCamera+1;
+
+    if (next==cameras.size()) {
+      next=0;
+    }
+
+    return(next);
+  }
+
   private void open() {
     Size previewSize=null;
+    CameraDescriptor camera=cameras.get(currentCamera);
+    CameraView cv=getPreview(camera);
 
     if (camera!=null && cv.getWidth()>0 && cv.getHeight()>0) {
-      // TODO: optional limit preview to same aspect ratio as chosen picture size
-
       Size largest=null;
       long currentLargestArea=0;
       Size smallestBiggerThanPreview=null;
@@ -199,15 +245,39 @@ public class CameraController implements CameraView.StateCallback {
   @SuppressWarnings("unused")
   public void onEventMainThread(CameraEngine.CameraDescriptorsEvent event) {
     if (event.descriptors.size()>0) {
-      camera=event.descriptors.get(0);
-      open();
+      cameras=event.descriptors;
+      EventBus.getDefault().post(new ControllerReadyEvent(cameras.size()));
     }
     else {
       EventBus.getDefault().post(new NoSuchCameraEvent());
     }
   }
 
+  /**
+   * Raised if there are no available cameras on this
+   * device. Consider using uses-feature elements in the
+   * manifest, so your app only runs on devices that have
+   * a camera, if you need a camera.
+   */
   public static class NoSuchCameraEvent {
 
+  }
+
+  /**
+   * Event raised when the controller has its cameras
+   * and is ready for use. Clients should then turn
+   * around and call setCameraViews() to complete the process
+   * and start showing the first preview.
+   */
+  public static class ControllerReadyEvent {
+    final private int cameraCount;
+
+    private ControllerReadyEvent(int cameraCount) {
+      this.cameraCount=cameraCount;
+    }
+
+    public int getNumberOfCameras() {
+      return(cameraCount);
+    }
   }
 }

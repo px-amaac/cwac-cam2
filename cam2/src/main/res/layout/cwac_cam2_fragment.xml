@@ -5,10 +5,15 @@
   android:layout_width="match_parent"
   android:layout_height="match_parent">
 
-  <com.commonsware.cwac.cam2.CameraView
-    android:id="@+id/cwac_cam2_camera"
+  <FrameLayout
+    android:id="@+id/cwac_cam2_preview_stack"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"/>
+    android:layout_height="match_parent">
+
+    <com.commonsware.cwac.cam2.CameraView
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"/>
+  </FrameLayout>
 
   <com.github.clans.fab.FloatingActionButton
     android:id="@+id/cwac_cam2_picture"

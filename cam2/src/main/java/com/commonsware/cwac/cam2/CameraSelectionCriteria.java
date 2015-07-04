@@ -68,14 +68,10 @@ public class CameraSelectionCriteria {
    * Possible values for the facing property
    */
   public enum Facing {
-    FRONT, BACK, FRONT_IF_AVAILABLE, BACK_IF_AVAILABLE;
+    FRONT, BACK;
 
     boolean isFront() {
-      return(this==FRONT || this==FRONT_IF_AVAILABLE);
-    }
-
-    boolean isExact() {
-      return(this==FRONT || this==BACK);
+      return(this==FRONT);
     }
   }
 }
