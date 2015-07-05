@@ -14,7 +14,10 @@
 
 package com.commonsware.cwac.cam2;
 
+import android.content.Context;
+import android.net.Uri;
 import android.os.Bundle;
+import java.io.File;
 import java.util.ArrayList;
 
 /**
@@ -93,6 +96,32 @@ public class PictureTransaction {
      * removable storage, where you want the picture to
      * be indexed by the MediaStore.
      *
+     * @param ctxt any Context will do
+     * @param output Uri to which you have write
+     *             access, where the photo should be taken
+     * @return the Builder, for more API calls
+     */
+    public Builder toUri(Context ctxt, Uri output) {
+      JPEGWriter jpeg=(JPEGWriter)result.findProcessorByTag(JPEGWriter.class.getCanonicalName());
+
+      if (jpeg==null) {
+        jpeg=new JPEGWriter(ctxt);
+        append(jpeg);
+      }
+
+      result.getProperties().putParcelable(JPEGWriter.PROP_OUTPUT, output);
+      result.getProperties().putBoolean(JPEGWriter.PROP_UPDATE_MEDIA_STORE, false);
+
+      return(this);
+    }
+
+    /**
+     * Indicates that the picture should be written to the
+     * designated filesystem path. Use the two-parameter
+     * version for pictures to be written to external or
+     * removable storage, where you want the picture to
+     * be indexed by the MediaStore.
+     *
      * @param path filesystem path, to which you have write
      *             access, where the photo should be taken
      * @return the Builder, for more API calls
@@ -117,11 +146,11 @@ public class PictureTransaction {
       JPEGWriter jpeg=(JPEGWriter)result.findProcessorByTag(JPEGWriter.class.getCanonicalName());
 
       if (jpeg==null) {
-        jpeg=new JPEGWriter();
+        jpeg=new JPEGWriter(null);
         append(jpeg);
       }
 
-      result.getProperties().putString(JPEGWriter.PROP_PATH, path);
+      result.getProperties().putParcelable(JPEGWriter.PROP_OUTPUT, Uri.fromFile(new File(path)));
       result.getProperties().putBoolean(JPEGWriter.PROP_UPDATE_MEDIA_STORE, updateMediaStore);
 
       return(this);

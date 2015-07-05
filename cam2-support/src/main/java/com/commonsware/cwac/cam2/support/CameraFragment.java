@@ -19,6 +19,7 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.app.Activity;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.v4.app.Fragment;
@@ -42,20 +43,19 @@ import de.greenrobot.event.EventBus;
  * you (or the user) to take a picture.
  */
 public class CameraFragment extends Fragment {
-  /**
-   * Interface that all hosting activities must implement.
-   */
-  public interface Contract {
-    /**
-     * Used by CameraFragment to indicate that the user has
-     * taken a photo, for activities that wish to take a specific
-     * action at this point (e.g., set a result and finish).
-     */
-    void completeRequest();
-  }
-
+  private static final String ARG_OUTPUT="output";
   private CameraController ctrl;
   private ViewGroup previewStack;
+
+  public static CameraFragment newInstance(Uri output) {
+    CameraFragment f=new CameraFragment();
+    Bundle args=new Bundle();
+
+    args.putParcelable(ARG_OUTPUT, output);
+    f.setArguments(args);
+
+    return(f);
+  }
 
   /**
    * Standard fragment entry point.
@@ -67,21 +67,6 @@ public class CameraFragment extends Fragment {
     super.onCreate(savedInstanceState);
 
     setRetainInstance(true);
-  }
-
-  /**
-   * Standard lifecycle method, for when the fragment becomes
-   * attached to an activity. Used here to validate the contract.
-   *
-   * @param activity the hosting activity
-   */
-  @Override
-  public void onAttach(Activity activity) {
-    super.onAttach(activity);
-
-    if (!(activity instanceof Contract)) {
-      throw new IllegalArgumentException("Hosting activity must implement CameraFragment.Contract");
-    }
   }
 
   /**
@@ -148,17 +133,15 @@ public class CameraFragment extends Fragment {
     fab.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View view) {
-        File dcim=Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
-        File dir=new File(dcim, "Cam2");
+        Uri output=getArguments().getParcelable(ARG_OUTPUT);
 
-        dir.mkdirs();
+        PictureTransaction.Builder b=new PictureTransaction.Builder();
 
-        File testOutput=new File(dir, "test.jpg");
+        if (output!=null) {
+          b.toUri(getActivity(), output);
+        }
 
-        PictureTransaction xact=new PictureTransaction.Builder()
-            .toFile(testOutput.getAbsolutePath(), true).build();
-
-        ctrl.takePicture(xact);
+        ctrl.takePicture(b.build());
       }
     });
 
@@ -208,20 +191,6 @@ public class CameraFragment extends Fragment {
     }
 
     ctrl.setCameraViews(cameraViews);
-  }
-
-  @SuppressWarnings("unused")
-  public void onEventMainThread(CameraEngine.PictureTakenEvent event) {
-    // TODO: figure out how to handle this, as I cannot quit
-    // immediately, as otherwise the rest of the camera system
-    // gets cranky
-
-    // getContract().completeRequest();
-    android.util.Log.e(getClass().getSimpleName(), "picture taken!");
-  }
-
-  private Contract getContract() {
-    return((Contract)getActivity());
   }
 
   // based on https://goo.gl/3IUM8K

@@ -127,6 +127,10 @@ abstract public class CameraEngine {
     public PictureTakenEvent(Exception exception) {
       super(exception);
     }
+
+    public ImageContext getImageContext() {
+      return(imageContext);
+    }
   }
 
   /**

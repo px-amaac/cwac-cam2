@@ -14,6 +14,8 @@
 
 package com.commonsware.cwac.cam2.support;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.support.v4.app.FragmentActivity;
 import android.content.ClipData;
 import android.content.Context;
@@ -34,23 +36,25 @@ import de.greenrobot.event.EventBus;
  * protocol, in terms of extras and return data, as does
  * ACTION_IMAGE_CAPTURE.
  */
-public class CameraActivity extends FragmentActivity
-    implements CameraFragment.Contract {
+public class CameraActivity extends FragmentActivity {
   /**
    * Extra name for indicating what facing rule for the
    * camera you wish to use. The value should be a
    * CameraSelectionCriteria.Facing instance.
    */
-  public static final String EXTRA_FACING="facing";
+  public static final String EXTRA_FACING="cwac_cam2_facing";
 
   /**
    * Extra name for indicating whether extra diagnostic
    * information should be reported, particularly for errors.
    * Default is false.
    */
-  public static final String EXTRA_DEBUG_ENABLED="debug";
+  public static final String EXTRA_DEBUG_ENABLED="cwac_cam2_debug";
 
-  private com.commonsware.cwac.cam2.CameraFragment frag;
+  private static final double LOG_2=Math.log(2.0d);
+
+  private CameraFragment frag;
+  private boolean needsThumbnail=false;
 
   /**
    * Use this method (or its two-parameter counterpart) to
@@ -107,11 +111,14 @@ public class CameraActivity extends FragmentActivity
 
     Utils.validateEnvironment(this);
 
-    frag=(com.commonsware.cwac.cam2.CameraFragment)getFragmentManager()
-                            .findFragmentById(android.R.id.content);
+    frag=(CameraFragment)getFragmentManager()
+        .findFragmentById(android.R.id.content);
 
     if (frag==null) {
-      frag=new CameraFragment();
+      Uri output=getOutputUri();
+
+      frag=CameraFragment.newInstance(output);
+      needsThumbnail=(output==null);
 
       CameraController ctrl=new CameraController();
       CameraSelectionCriteria.Facing facing=
@@ -133,8 +140,6 @@ public class CameraActivity extends FragmentActivity
           .add(android.R.id.content, frag)
           .commit();
     }
-
-    getOutputUri(); // TODO: do something with this
   }
 
   /**
@@ -164,15 +169,47 @@ public class CameraActivity extends FragmentActivity
     finish();
   }
 
-  /**
-   * Used by CameraFragment to indicate that the user has
-   * taken a photo. While this is public, it is not really
-   * part of the API of this activity class.
-   */
-  public void completeRequest() {
-    setResult(RESULT_OK, new Intent()); // TODO: real result
+  @SuppressWarnings("unused")
+  public void onEventMainThread(CameraEngine.PictureTakenEvent event) {
+    if (needsThumbnail) {
+      final Intent result=new Intent();
+      byte[] jpeg=event.getImageContext().getJpeg();
+      // TODO: move this into PictureTransaction work somewhere, so done
+      // on a background thread
 
-    finish();
+      // TODO: guesstimating 100KB of JPEG data should be small enough, should
+      // use better algorithm here
+
+      double ratio=(double)jpeg.length / 100000.0d;
+      BitmapFactory.Options opts=new BitmapFactory.Options();
+
+      if (ratio>1.0d) {
+        opts.inSampleSize=1 << (int)(Math.ceil(Math.log(ratio) / LOG_2));
+      }
+      else {
+        opts.inSampleSize=1;
+      }
+
+      Bitmap bmp=BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length, opts);
+
+      result.putExtra("data", bmp);
+
+      findViewById(android.R.id.content).post(new Runnable() {
+        @Override
+        public void run() {
+          setResult(RESULT_OK, result);
+          finish();
+        }
+      });
+    }
+    else {
+      findViewById(android.R.id.content).post(new Runnable() {
+        @Override
+        public void run() {
+          finish();
+        }
+      });
+    }
   }
 
   private Uri getOutputUri() {
@@ -187,11 +224,7 @@ public class CameraActivity extends FragmentActivity
     }
 
     if (output==null) {
-      output=(Uri)getIntent().getParcelableExtra(MediaStore.EXTRA_OUTPUT);
-    }
-
-    if (output==null) {
-      // TODO: come up with one
+      output=getIntent().getParcelableExtra(MediaStore.EXTRA_OUTPUT);
     }
 
     return(output);
