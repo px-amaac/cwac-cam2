@@ -14,9 +14,6 @@
 
 package com.commonsware.cwac.cam2.support;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.support.v4.app.FragmentActivity;
 import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
@@ -24,11 +21,15 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentActivity;
+import android.view.Window;
 import com.commonsware.cwac.cam2.CameraController;
 import com.commonsware.cwac.cam2.CameraEngine;
-import com.commonsware.cwac.cam2.CameraFragment;
 import com.commonsware.cwac.cam2.CameraSelectionCriteria;
+import com.commonsware.cwac.cam2.ImageContext;
 import com.commonsware.cwac.cam2.util.Utils;
+import java.io.File;
 import de.greenrobot.event.EventBus;
 
 /**
@@ -36,181 +37,182 @@ import de.greenrobot.event.EventBus;
  * protocol, in terms of extras and return data, as does
  * ACTION_IMAGE_CAPTURE.
  */
-public class CameraActivity extends FragmentActivity {
-  /**
-   * Extra name for indicating what facing rule for the
-   * camera you wish to use. The value should be a
-   * CameraSelectionCriteria.Facing instance.
-   */
-  public static final String EXTRA_FACING="cwac_cam2_facing";
+public class CameraActivity extends FragmentActivity
+  implements ConfirmationFragment.Contract {
+    /**
+     * Extra name for indicating what facing rule for the
+     * camera you wish to use. The value should be a
+     * CameraSelectionCriteria.Facing instance.
+     */
+    public static final String EXTRA_FACING="cwac_cam2_facing";
 
-  /**
-   * Extra name for indicating whether extra diagnostic
-   * information should be reported, particularly for errors.
-   * Default is false.
-   */
-  public static final String EXTRA_DEBUG_ENABLED="cwac_cam2_debug";
+    /**
+     * Extra name for indicating whether extra diagnostic
+     * information should be reported, particularly for errors.
+     * Default is false.
+     */
+    public static final String EXTRA_DEBUG_ENABLED="cwac_cam2_debug";
 
-  private static final double LOG_2=Math.log(2.0d);
+    /**
+     * Extra name for indicating whether a confirmation screen
+     * should appear after taking the picture, or whether taking
+     * the picture should immediately return said picture. Defaults
+     * to true, meaning that the user should confirm the picture.
+     */
+    public static final String EXTRA_CONFIRM="cwac_cam2_confirm";
 
-  private CameraFragment frag;
-  private boolean needsThumbnail=false;
+    private CameraFragment cameraFrag;
+    private ConfirmationFragment confirmFrag;
+    private boolean needsThumbnail=false;
 
-  /**
-   * Use this method (or its two-parameter counterpart) to
-   * create the Intent to use to start this activity, or
-   * to start the ACTION_CAPTURE_IMAGE activity (if the app
-   * or device is incapable of supporting this activity).
-   *
-   * @param ctxt any Context will do
-   * @return Intent to be used to start up this activity
-   */
-  public static Intent buildLaunchIntent(Context ctxt) {
-    return(buildLaunchIntent(ctxt, true));
-  }
+    /**
+     * Standard lifecycle method, serving as the main entry
+     * point of the activity.
+     *
+     * @param savedInstanceState the state of a previous instance
+     */
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+      super.onCreate(savedInstanceState);
 
-  /**
-   * Use this method (or its one-parameter counterpart) to
-   * create the Intent to use to start this activity.
-   *
-   * @param ctxt any Context will do
-   * @param useFallback supply false to indicate that
-   *                    this method should throw an exception
-   *                    if the app or device cannot start this
-   *                    activity
-   * @return Intent to be used to start up this activity
-   */
-  public static Intent buildLaunchIntent(Context ctxt,
-                                         boolean useFallback) {
-    Intent result=new Intent(ctxt, CameraActivity.class);
+      Utils.validateEnvironment(this);
 
-    try {
-      Utils.validateEnvironment(ctxt);
-    }
-    catch (Exception e) {
-      if (useFallback) {
-        result=new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+      getWindow().requestFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
+
+      Fragment f=getSupportFragmentManager().findFragmentById(android.R.id.content);
+
+      if (f instanceof CameraFragment) {
+        cameraFrag=(CameraFragment)f;
       }
       else {
-        throw e;
+        confirmFrag=(ConfirmationFragment)f;
+      }
+
+      if (cameraFrag==null) {
+        Uri output=getOutputUri();
+
+        cameraFrag=CameraFragment.newInstance(output);
+        needsThumbnail=(output==null);
+
+        CameraController ctrl=new CameraController();
+        CameraSelectionCriteria.Facing facing=
+            (CameraSelectionCriteria.Facing)getIntent().getSerializableExtra(EXTRA_FACING);
+
+        if (facing==null) {
+          facing=CameraSelectionCriteria.Facing.BACK;
+        }
+
+        CameraSelectionCriteria criteria=
+            new CameraSelectionCriteria.Builder().facing(facing).build();
+
+        ctrl.setEngine(CameraEngine.buildInstance(this), criteria);
+        ctrl.getEngine().setDebug(getIntent().getBooleanExtra(EXTRA_DEBUG_ENABLED, false));
+        cameraFrag.setController(ctrl);
+        getSupportFragmentManager()
+            .beginTransaction()
+            .add(android.R.id.content, cameraFrag)
+            .commit();
+      }
+
+      if (confirmFrag==null) {
+        confirmFrag=ConfirmationFragment.newInstance();
+        getSupportFragmentManager()
+            .beginTransaction()
+            .add(android.R.id.content, confirmFrag)
+            .commit();
+      }
+
+      if (!cameraFrag.isVisible() && !confirmFrag.isVisible()) {
+        getSupportFragmentManager()
+            .beginTransaction()
+            .hide(confirmFrag)
+            .show(cameraFrag)
+            .commit();
       }
     }
 
-    return(result);
-  }
+    /**
+     * Standard lifecycle method, for when the fragment moves into
+     * the started state. Passed along to the CameraController.
+     */
+    @Override
+    public void onStart() {
+      super.onStart();
 
-  /**
-   * Standard lifecycle method, serving as the main entry
-   * point of the activity.
-   *
-   * @param savedInstanceState the state of a previous instance
-   */
-  @Override
-  protected void onCreate(Bundle savedInstanceState) {
-    super.onCreate(savedInstanceState);
+      EventBus.getDefault().register(this);
+    }
 
-    Utils.validateEnvironment(this);
+    /**
+     * Standard lifecycle method, for when the fragment moves into
+     * the stopped state. Passed along to the CameraController.
+     */
+    @Override
+    public void onStop() {
+      EventBus.getDefault().unregister(this);
 
-    frag=(CameraFragment)getFragmentManager()
-        .findFragmentById(android.R.id.content);
+      super.onStop();
+    }
 
-    if (frag==null) {
-      Uri output=getOutputUri();
+    @SuppressWarnings("unused")
+    public void onEventMainThread(CameraController.NoSuchCameraEvent event) {
+      finish();
+    }
 
-      frag=CameraFragment.newInstance(output);
-      needsThumbnail=(output==null);
+    @SuppressWarnings("unused")
+    public void onEventMainThread(CameraEngine.PictureTakenEvent event) {
+      if (getIntent().getBooleanExtra(EXTRA_CONFIRM, true)) {
+        confirmFrag.setImage(event.getImageContext());
 
-      CameraController ctrl=new CameraController();
-      CameraSelectionCriteria.Facing facing=
-          (CameraSelectionCriteria.Facing)getIntent().getSerializableExtra(EXTRA_FACING);
-
-      if (facing==null) {
-        facing=CameraSelectionCriteria.Facing.BACK;
+        getSupportFragmentManager()
+            .beginTransaction()
+            .hide(cameraFrag)
+            .show(confirmFrag)
+            .commit();
       }
+      else {
+        completeRequest(event.getImageContext(), true);
+      }
+    }
 
-      CameraSelectionCriteria criteria=
-          new CameraSelectionCriteria.Builder().facing(facing).build();
-
-      ctrl.setEngine(CameraEngine.buildInstance(this), criteria);
-      ctrl.getEngine().setDebug(getIntent().getBooleanExtra(EXTRA_DEBUG_ENABLED, false));
-      frag.setController(ctrl);
-
-      getFragmentManager()
+    @Override
+    public void retakePicture() {
+      getSupportFragmentManager()
           .beginTransaction()
-          .add(android.R.id.content, frag)
+          .hide(confirmFrag)
+          .show(cameraFrag)
           .commit();
     }
-  }
 
-  /**
-   * Standard lifecycle method, for when the fragment moves into
-   * the started state. Passed along to the CameraController.
-   */
-  @Override
-  public void onStart() {
-    super.onStart();
-
-    EventBus.getDefault().register(this);
-  }
-
-  /**
-   * Standard lifecycle method, for when the fragment moves into
-   * the stopped state. Passed along to the CameraController.
-   */
-  @Override
-  public void onStop() {
-    EventBus.getDefault().unregister(this);
-
-    super.onStop();
-  }
-
-  @SuppressWarnings("unused")
-  public void onEventMainThread(CameraController.NoSuchCameraEvent event) {
-    finish();
-  }
-
-  @SuppressWarnings("unused")
-  public void onEventMainThread(CameraEngine.PictureTakenEvent event) {
-    if (needsThumbnail) {
-      final Intent result=new Intent();
-      byte[] jpeg=event.getImageContext().getJpeg();
-      // TODO: move this into PictureTransaction work somewhere, so done
-      // on a background thread
-
-      // TODO: guesstimating 100KB of JPEG data should be small enough, should
-      // use better algorithm here
-
-      double ratio=(double)jpeg.length / 100000.0d;
-      BitmapFactory.Options opts=new BitmapFactory.Options();
-
-      if (ratio>1.0d) {
-        opts.inSampleSize=1 << (int)(Math.ceil(Math.log(ratio) / LOG_2));
+    @Override
+    public void completeRequest(ImageContext imageContext, boolean isOK) {
+      if (!isOK) {
+        setResult(RESULT_CANCELED);
       }
       else {
-        opts.inSampleSize=1;
+        if (needsThumbnail) {
+          final Intent result=new Intent();
+
+          result.putExtra("data", imageContext.buildResultThumbnail());
+
+          findViewById(android.R.id.content).post(new Runnable() {
+            @Override
+            public void run() {
+              setResult(RESULT_OK, result);
+              finish();
+            }
+          });
+        }
+        else {
+          findViewById(android.R.id.content).post(new Runnable() {
+            @Override
+            public void run() {
+              setResult(RESULT_OK);
+              finish();
+            }
+          });
+        }
       }
-
-      Bitmap bmp=BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length, opts);
-
-      result.putExtra("data", bmp);
-
-      findViewById(android.R.id.content).post(new Runnable() {
-        @Override
-        public void run() {
-          setResult(RESULT_OK, result);
-          finish();
-        }
-      });
     }
-    else {
-      findViewById(android.R.id.content).post(new Runnable() {
-        @Override
-        public void run() {
-          finish();
-        }
-      });
-    }
-  }
 
   private Uri getOutputUri() {
     Uri output=null;
@@ -228,5 +230,100 @@ public class CameraActivity extends FragmentActivity {
     }
 
     return(output);
+  }
+
+  /**
+   * Class to build an Intent used to start the CameraActivity.
+   * Call setComponent() on the Intent if you are using your
+   * own subclass of CameraActivty.
+   */
+  public static class IntentBuilder {
+    private final Intent result;
+
+    /**
+     * Standard constructor. May throw a runtime exception
+     * if the environment is not set up properly (see
+     * validateEnvironment() on Utils).
+     *
+     * @param ctxt any Context will do
+     */
+    public IntentBuilder(Context ctxt) {
+      Utils.validateEnvironment(ctxt);
+      result=new Intent(ctxt, CameraActivity.class);
+    }
+
+    /**
+     * Returns the Intent defined by the builder.
+     *
+     * @return the Intent to use to start the CameraActivity
+     */
+    public Intent build() {
+      return(result);
+    }
+
+    /**
+     * Indicates what camera should be used as the starting
+     * point. Defaults to the rear-facing camera.
+     *
+     * @param facing which camera to use
+     * @return the builder, for further configuration
+     */
+    public IntentBuilder facing(CameraSelectionCriteria.Facing facing) {
+      result.putExtra(EXTRA_FACING, facing);
+
+      return(this);
+    }
+
+    /**
+     * Call if you want extra diagnostic information dumped to
+     * LogCat. Not ideal for use in production.
+     *
+     * @return the builder, for further configuration
+     */
+    public IntentBuilder debug() {
+      result.putExtra(EXTRA_DEBUG_ENABLED, true);
+
+      return(this);
+    }
+
+    /**
+     * Call to skip the confirmation screen, so once the user
+     * takes the picture, you get control back right away.
+     *
+     * @return the builder, for further configuration
+     */
+    public IntentBuilder skipConfirm() {
+      result.putExtra(EXTRA_CONFIRM, false);
+
+      return(this);
+    }
+
+    /**
+     * Indicates where to write the picture to. Defaults to
+     * returning a thumbnail bitmap in the "data" extra, as
+     * with ACTION_IMAGE_CAPTURE. Note that you need to have
+     * write access to the supplied file.
+     *
+     * @param f file in which to write the picture
+     * @return the builder, for further configuration
+     */
+    public IntentBuilder to(File f) {
+      return(to(Uri.fromFile(f)));
+    }
+
+    /**
+     * Indicates where to write the picture to. Defaults to
+     * returning a thumbnail bitmap in the "data" extra, as
+     * with ACTION_IMAGE_CAPTURE. Note that you need to have
+     * write access to the supplied Uri.
+     *
+     * @param output Uri to which to write the picture
+     * @return the builder, for further configuration
+     */
+    public IntentBuilder to(Uri output) {
+      result.putExtra(MediaStore.EXTRA_OUTPUT, output);
+
+      return(this);
+    }
   }
 }
