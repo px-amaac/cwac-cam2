@@ -18,8 +18,10 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
+import android.app.ActionBar;
 import android.app.Fragment;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -39,6 +41,8 @@ public class CameraFragment extends Fragment {
   private static final String ARG_OUTPUT="output";
   private CameraController ctrl;
   private ViewGroup previewStack;
+  private FloatingActionButton fabSwitch;
+  private View progress;
 
   public static CameraFragment newInstance(Uri output) {
     CameraFragment f=new CameraFragment();
@@ -74,6 +78,27 @@ public class CameraFragment extends Fragment {
 
     if (ctrl!=null) {
       ctrl.start();
+    }
+  }
+
+  @Override
+  public void onHiddenChanged(boolean isHidden) {
+    super.onHiddenChanged(isHidden);
+
+    if (!isHidden) {
+      ActionBar ab=getActivity().getActionBar();
+
+      ab.setBackgroundDrawable(getActivity()
+          .getResources()
+          .getDrawable(R.drawable.cwac_cam2_action_bar_bg_transparent));
+      ab.setTitle("");
+
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        ab.setDisplayHomeAsUpEnabled(false);
+      } else {
+        ab.setDisplayShowHomeEnabled(false);
+        ab.setHomeButtonEnabled(false);
+      }
     }
   }
 
@@ -120,6 +145,7 @@ public class CameraFragment extends Fragment {
     View v=inflater.inflate(R.layout.cwac_cam2_fragment, container, false);
 
     previewStack=(ViewGroup)v.findViewById(R.id.cwac_cam2_preview_stack);
+    progress=v.findViewById(R.id.cwac_cam2_progress);
 
     FloatingActionButton fab=(FloatingActionButton)v.findViewById(R.id.cwac_cam2_picture);
 
@@ -138,8 +164,8 @@ public class CameraFragment extends Fragment {
       }
     });
 
-    fab=(FloatingActionButton)v.findViewById(R.id.cwac_cam2_switch_camera);
-    fab.setOnClickListener(new View.OnClickListener() {
+    fabSwitch=(FloatingActionButton)v.findViewById(R.id.cwac_cam2_switch_camera);
+    fabSwitch.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View view) {
         ctrl.switchCamera();
@@ -147,6 +173,9 @@ public class CameraFragment extends Fragment {
     });
 
     changeMenuIconAnimation((FloatingActionMenu)v.findViewById(R.id.cwac_cam2_settings));
+
+    onHiddenChanged(false); // hack, since this does not get
+                            // called on initial display
 
     return(v);
   }

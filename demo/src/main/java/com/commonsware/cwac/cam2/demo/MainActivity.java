@@ -24,7 +24,7 @@ public class MainActivity extends Activity {
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
 
-    startActivity(CameraActivity.buildLaunchIntent(this));
+    startActivity(new CameraActivity.IntentBuilder(this).debug().build());
     finish();
   }
 }

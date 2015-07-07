@@ -29,9 +29,11 @@ import android.graphics.BitmapFactory;
  * where possible.
  */
 public class ImageContext {
+  private static final double LOG_2=Math.log(2.0d);
   private Context ctxt;
   private byte[] jpeg;
   private Bitmap bmp;
+  private Bitmap thumbnail;
 
   ImageContext(Context ctxt, byte[] jpeg) {
     this.ctxt=ctxt.getApplicationContext();
@@ -61,6 +63,7 @@ public class ImageContext {
   public void setJpeg(byte[] jpeg) {
     this.jpeg=jpeg;
     this.bmp=null;
+    this.thumbnail=null;
   }
 
   /**
@@ -78,6 +81,38 @@ public class ImageContext {
     }
 
     return(bmp);
+  }
+
+  public Bitmap buildPreviewThumbnail() {
+    // TODO: move this into PictureTransaction work somewhere, so done
+    // on a background thread
+
+    if (thumbnail==null) {
+      thumbnail=createThumbnail(200000.0d, null);
+    }
+
+    return(thumbnail);
+  }
+
+  public Bitmap buildResultThumbnail() {
+    // TODO: move this onto background thread
+
+    return(createThumbnail(100000.0d, null));
+  }
+
+  private Bitmap createThumbnail(double maxLength, Bitmap inBitmap) {
+    double ratio=(double)jpeg.length / maxLength;
+    BitmapFactory.Options opts=new BitmapFactory.Options();
+
+    if (ratio > 1.0d) {
+      opts.inSampleSize=1 << (int)(Math.ceil(Math.log(ratio) / LOG_2));
+    } else {
+      opts.inSampleSize=1;
+    }
+
+    opts.inBitmap=inBitmap;
+
+    return(BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length, opts));
   }
 
   private void updateBitmap() {

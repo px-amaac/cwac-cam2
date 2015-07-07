@@ -46,7 +46,6 @@ public class CameraView extends TextureView implements TextureView.SurfaceTextur
    * orientation of the device
    */
   private int orientation=0;
-
   private CameraEngine engine;
   private StateCallback stateCallback;
 
@@ -155,10 +154,10 @@ public class CameraView extends TextureView implements TextureView.SurfaceTextur
 
     boolean useFirstStrategy=
         (width * previewHeight > height * previewWidth);
-    boolean useFullBleed=true;  // TODO: configurable?
+    boolean fullBleed=true;
 
-    if ((useFirstStrategy && !useFullBleed)
-        || (!useFirstStrategy && useFullBleed)) {
+    if ((useFirstStrategy && !fullBleed)
+        || (!useFirstStrategy && fullBleed)) {
       setMeasuredDimension(previewWidth * height / previewHeight, height);
     }
     else {

@@ -14,6 +14,7 @@
 
 package com.commonsware.cwac.cam2;
 
+import android.content.pm.PackageInstaller;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.os.Build;
