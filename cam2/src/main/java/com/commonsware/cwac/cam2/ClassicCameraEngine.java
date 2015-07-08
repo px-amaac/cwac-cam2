@@ -85,14 +85,21 @@ public class ClassicCameraEngine extends CameraEngine {
    */
   @Override
   public void close(final CameraSession session) {
-    Descriptor descriptor=(Descriptor)session.getDescriptor();
-    Camera camera=descriptor.getCamera();
+    getThreadPool().execute(new Runnable() {
+      @Override
+      public void run() {
+        Descriptor descriptor=(Descriptor)session.getDescriptor();
+        Camera camera=descriptor.getCamera();
 
-    if (camera!=null) {
-      camera.stopPreview();
-      camera.release();
-      descriptor.setCamera(null);
-    }
+        if (camera != null) {
+          camera.stopPreview();
+          camera.release();
+          descriptor.setCamera(null);
+        }
+
+        getBus().post(new ClosedEvent());
+      }
+    });
   }
 
   /**
@@ -108,11 +115,11 @@ public class ClassicCameraEngine extends CameraEngine {
 
         try {
           camera.takePicture(new Camera.ShutterCallback() {
-            @Override
-            public void onShutter() {
-              // empty plays a sound -- go figure
-            }
-          }, null,
+                               @Override
+                               public void onShutter() {
+                                 // empty plays a sound -- go figure
+                               }
+                             }, null,
               new TakePictureTransaction(session.getContext(), xact));
         }
         catch (Exception e) {
@@ -174,18 +181,18 @@ public class ClassicCameraEngine extends CameraEngine {
     int score=10;
     Camera.CameraInfo info=new Camera.CameraInfo();
 
-    if (criteria!=null) {
+    if (criteria != null) {
       Camera.getCameraInfo(cameraId, info);
 
       if ((criteria.getFacing().isFront() &&
-          info.facing!=Camera.CameraInfo.CAMERA_FACING_FRONT) ||
+          info.facing != Camera.CameraInfo.CAMERA_FACING_FRONT) ||
           (!criteria.getFacing().isFront() &&
-              info.facing!=Camera.CameraInfo.CAMERA_FACING_BACK)) {
+              info.facing != Camera.CameraInfo.CAMERA_FACING_BACK)) {
         score=0;
       }
     }
 
-    return(score);
+    return (score);
   }
 
   private class TakePictureTransaction implements Camera.PictureCallback {
@@ -222,7 +229,7 @@ public class ClassicCameraEngine extends CameraEngine {
     }
 
     public int getCameraId() {
-      return(cameraId);
+      return (cameraId);
     }
 
     private void setCamera(Camera camera) {
@@ -230,7 +237,7 @@ public class ClassicCameraEngine extends CameraEngine {
     }
 
     private Camera getCamera() {
-      return(camera);
+      return (camera);
     }
 
     @Override
@@ -241,12 +248,12 @@ public class ClassicCameraEngine extends CameraEngine {
       int lhs=((Descriptor)descriptor).score;
       int rhs=score;
 
-      return(lhs < rhs ? -1 : (lhs == rhs ? 0 : 1));
+      return (lhs < rhs ? -1 : (lhs == rhs ? 0 : 1));
     }
 
     @Override
     public ArrayList<Size> getPreviewSizes() {
-      return(previewSizes);
+      return (previewSizes);
     }
 
     private void setPreviewSizes(ArrayList<Size> sizes) {
@@ -255,12 +262,12 @@ public class ClassicCameraEngine extends CameraEngine {
 
     @Override
     public ArrayList<Size> getPictureSizes() {
-      return(pictureSizes);
+      return (pictureSizes);
     }
 
     @Override
     public boolean isPictureFormatSupported(int format) {
-      return(ImageFormat.JPEG==format);
+      return (ImageFormat.JPEG == format);
     }
 
     private void setPictureSizes(ArrayList<Size> sizes) {
@@ -284,12 +291,12 @@ public class ClassicCameraEngine extends CameraEngine {
       for (CameraPlugin plugin : getPlugins()) {
         ClassicCameraConfigurator configurator=plugin.buildConfigurator(ClassicCameraConfigurator.class);
 
-        if (configurator!=null) {
+        if (configurator != null) {
           params=configurator.configure(info, camera, params);
         }
       }
 
-      return(params);
+      return (params);
     }
   }
 

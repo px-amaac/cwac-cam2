@@ -173,38 +173,43 @@ public class CameraTwoEngine extends CameraEngine {
    * {@inheritDoc}
    */
   @Override
-  public void close(CameraSession session) {
-    final Session s=(Session)session;
+  public void close(final CameraSession session) {
+    getThreadPool().execute(new Runnable() {
+      @Override
+      public void run() {
+        final Session s=(Session)session;
 
-    try {
-      lock.acquire();
+        try {
+          lock.acquire();
 
-      if (s.captureSession != null) {
-        closeLatch=new CountDownLatch(1);
-        s.captureSession.close();
-        closeLatch.await(2, TimeUnit.SECONDS);
-        s.captureSession=null;
+          if (s.captureSession != null) {
+            closeLatch=new CountDownLatch(1);
+            s.captureSession.close();
+            closeLatch.await(2, TimeUnit.SECONDS);
+            s.captureSession=null;
+          }
+
+          if (s.cameraDevice != null) {
+            s.cameraDevice.close();
+            s.cameraDevice=null;
+          }
+
+          if (s.reader != null) {
+            s.reader.close();
+          }
+
+          Descriptor camera=(Descriptor)session.getDescriptor();
+
+          camera.setDevice(null);
+          getBus().post(new ClosedEvent());
+        }
+        catch (Exception e) {
+          getBus().post(new ClosedEvent(e));
+        } finally {
+          lock.release();
+        }
       }
-
-      if (s.cameraDevice != null) {
-        s.cameraDevice.close();
-        s.cameraDevice=null;
-      }
-
-      if (s.reader != null) {
-        s.reader.close();
-      }
-
-      Descriptor camera=(Descriptor)session.getDescriptor();
-
-      camera.setDevice(null);
-    }
-    catch (Exception e) {
-      throw new IllegalStateException("Exception closing camera", e);
-    }
-    finally {
-      lock.release();
-    }
+    });
   }
 
   /**

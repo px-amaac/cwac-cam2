@@ -112,6 +112,23 @@ abstract public class CameraEngine {
   }
 
   /**
+   * Event raised when the camera has been closed.
+   * Subscribe to this event if you use close()
+   * to to find out when the close has completed.
+   * May include an exception if there was
+   * an exception closing the camera.
+   */
+  public static class ClosedEvent extends CrashableEvent {
+    public ClosedEvent() {
+      super();
+    }
+
+    public ClosedEvent(Exception exception) {
+      super(exception);
+    }
+  }
+
+  /**
    * Event raised when picture is taken, as a result of a
    * takePicture() call. May include an exception if there was
    * an exception accessing the camera.
@@ -177,8 +194,8 @@ abstract public class CameraEngine {
                             SurfaceTexture texture);
 
   /**
-   * Close the open camera. Note that this work is done
-   * synchronously, while most calls to this class are asynchronous.
+   * Close the open camera. Subscribe to the ClosedEvent to
+   * find out when this work is completed.
    *
    * @param session the session for the camera of interest
    */

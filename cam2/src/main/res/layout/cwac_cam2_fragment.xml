@@ -20,7 +20,7 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:layout_centerInParent="true"
-    android:visibility="gone"/>
+    android:visibility="visible"/>
 
   <com.github.clans.fab.FloatingActionButton
     android:id="@+id/cwac_cam2_picture"

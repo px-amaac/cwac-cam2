@@ -168,6 +168,8 @@ public class CameraFragment extends Fragment {
     fabSwitch.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View view) {
+        progress.setVisibility(View.VISIBLE);
+        fabSwitch.setEnabled(false);
         ctrl.switchCamera();
       }
     });
@@ -213,6 +215,12 @@ public class CameraFragment extends Fragment {
     }
 
     ctrl.setCameraViews(cameraViews);
+  }
+
+  @SuppressWarnings("unused")
+  public void onEventMainThread(CameraEngine.OpenedEvent event) {
+    progress.setVisibility(View.GONE);
+    fabSwitch.setEnabled(true);
   }
 
   // based on https://goo.gl/3IUM8K

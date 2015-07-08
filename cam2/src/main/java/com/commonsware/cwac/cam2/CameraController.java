@@ -38,6 +38,7 @@ public class CameraController implements CameraView.StateCallback {
   private int currentCamera=0;
   private final HashMap<CameraDescriptor, CameraView> previews=
       new HashMap<CameraDescriptor, CameraView>();
+  private boolean switchPending=false;
 
   /**
    * @return the engine being used by this fragment to access
@@ -116,12 +117,9 @@ public class CameraController implements CameraView.StateCallback {
   public void switchCamera() {
     if (session!=null) {
       getPreview(session.getDescriptor()).setVisibility(View.INVISIBLE);
+      switchPending=true;
       stop();
     }
-
-    currentCamera=getNextCameraIndex();
-    getPreview(cameras.get(currentCamera)).setVisibility(View.VISIBLE);
-    open();
   }
 
   /**
@@ -251,6 +249,16 @@ public class CameraController implements CameraView.StateCallback {
     }
     else {
       EventBus.getDefault().post(new NoSuchCameraEvent());
+    }
+  }
+
+  @SuppressWarnings("unused")
+  public void onEventMainThread(CameraEngine.ClosedEvent event) {
+    if (switchPending) {
+      switchPending=false;
+      currentCamera=getNextCameraIndex();
+      getPreview(cameras.get(currentCamera)).setVisibility(View.VISIBLE);
+      open();
     }
   }
 
