@@ -2,5 +2,12 @@
 <resources>
 
 	<string name="app_name">CWAC-Cam2 Demo</string>
+	<string name="previous">Previous</string>
+	<string name="capture">Capture</string>
+	<string name="wizard_page_1_instructions">Please place the device in portrait mode, then click the Capture button, then take two pictures (rear-facing, then front-facing).</string>
+	<string name="wizard_page_2_instructions">Please place the device in landscape mode, then click the Capture button, then take two pictures (rear-facing, then front-facing).</string>
+	<string name="wizard_page_3_instructions">The ZIP file shown below on external storage contains the test results to submit with your issue.</string>
+	<string name="share">Share</string>
+	<string name="finish">Finish</string>
 
 </resources>

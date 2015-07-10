@@ -7,7 +7,7 @@ repositories {
 }
 
 dependencies {
-    // debugCompile project(':cam2')
+    compile 'com.squareup.moshi:moshi:0.9.0'
     compile project(':cam2')
     // releaseCompile 'com.commonsware.cwac:cam2:0.6.+'
 }
