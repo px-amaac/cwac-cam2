@@ -92,7 +92,7 @@ public class CameraTwoEngine extends CameraEngine {
    */
   @Override
   public CameraSession.Builder buildSession(Context ctxt, CameraDescriptor descriptor) {
-    return (new SessionBuilder(ctxt, descriptor));
+    return(new SessionBuilder(ctxt, descriptor));
   }
 
   /**

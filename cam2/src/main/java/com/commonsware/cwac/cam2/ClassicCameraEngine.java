@@ -18,7 +18,6 @@ import android.content.Context;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
-import android.os.Build;
 import android.util.Log;
 import com.commonsware.cwac.cam2.util.Size;
 import java.util.ArrayList;

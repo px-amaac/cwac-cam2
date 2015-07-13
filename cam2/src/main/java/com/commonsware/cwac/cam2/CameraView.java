@@ -45,7 +45,6 @@ public class CameraView extends TextureView implements TextureView.SurfaceTextur
    * The orientation of the preview frames, where 0 is the natural
    * orientation of the device
    */
-  private int orientation=0;
   private CameraEngine engine;
   private StateCallback stateCallback;
 
@@ -101,20 +100,6 @@ public class CameraView extends TextureView implements TextureView.SurfaceTextur
     enterTheMatrix();
   }
 
-  /**
-   * @return the 0-based orientation, in degrees
-   */
-  public int getOrientation() {
-    return(orientation);
-  }
-
-  /**
-   * @param orientation the 0-based orientation, in degrees
-   */
-  public void setOrientation(int orientation) {
-    this.orientation=orientation;
-  }
-
   public void setStateCallback(StateCallback cb) {
     stateCallback=cb;
   }
@@ -139,10 +124,10 @@ public class CameraView extends TextureView implements TextureView.SurfaceTextur
     int previewWidth=width;
     int previewHeight=height;
 
-    // handle orientation
+    int rotation=((Activity)getContext()).getWindowManager().getDefaultDisplay().getRotation();
 
     if (previewSize != null) {
-      if (orientation == 90 || orientation == 270) {
+      if (rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180) {
         previewWidth=previewSize.getHeight();
         previewHeight=previewSize.getWidth();
       }
@@ -200,20 +185,27 @@ public class CameraView extends TextureView implements TextureView.SurfaceTextur
   private void enterTheMatrix() {
     int rotation=((Activity)getContext()).getWindowManager().getDefaultDisplay().getRotation();
 
-    if (Surface.ROTATION_90==rotation || Surface.ROTATION_270==rotation) {
-      Matrix matrix=new Matrix();
-      RectF myRect=new RectF(0, 0, getWidth(), getHeight());
-      RectF previewRect=new RectF(0, 0, previewSize.getHeight(), previewSize.getWidth());
-      float cX=myRect.centerX();
-      float cY=myRect.centerY();
-      float scale=Math.max((float)getHeight() / previewSize.getHeight(),
-          (float)getWidth() / previewSize.getWidth());
+    Matrix matrix=new Matrix();
+    RectF viewRect=new RectF(0, 0, getWidth(), getHeight());
+    RectF bufferRect=new RectF(0, 0, previewSize.getHeight(), previewSize.getWidth());
+    float centerX=viewRect.centerX();
+    float centerY=viewRect.centerY();
 
-      previewRect.offset(cX - previewRect.centerX(), cY - previewRect.centerY());
-      matrix.setRectToRect(myRect, previewRect, Matrix.ScaleToFit.FILL);
-      matrix.postScale(scale, scale, cX, cY);
-      matrix.postRotate(90*(rotation-2), cX, cY);
-      setTransform(matrix);
+    if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
+      bufferRect.offset(centerX-bufferRect.centerX(), centerY-bufferRect.centerY());
+      matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
+
+      float scale=Math.max(
+          (float)getHeight()/previewSize.getHeight(),
+          (float)getWidth()/previewSize.getWidth());
+
+      matrix.postScale(scale, scale, centerX, centerY);
+      matrix.postRotate(90*(rotation-2), centerX, centerY);
     }
+    else if (Surface.ROTATION_180==rotation) {
+      matrix.postRotate(180, centerX, centerY);
+    }
+
+    setTransform(matrix);
   }
 }
