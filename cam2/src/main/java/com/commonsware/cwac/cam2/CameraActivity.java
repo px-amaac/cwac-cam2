@@ -91,6 +91,9 @@ public class CameraActivity extends Activity
       needsThumbnail=(output==null);
 
       CameraController ctrl=new CameraController();
+
+      cameraFrag.setController(ctrl);
+
       CameraSelectionCriteria.Facing facing=
           (CameraSelectionCriteria.Facing)getIntent().getSerializableExtra(EXTRA_FACING);
 
@@ -103,7 +106,6 @@ public class CameraActivity extends Activity
 
       ctrl.setEngine(CameraEngine.buildInstance(this), criteria);
       ctrl.getEngine().setDebug(getIntent().getBooleanExtra(EXTRA_DEBUG_ENABLED, false));
-      cameraFrag.setController(ctrl);
       getFragmentManager()
           .beginTransaction()
           .add(android.R.id.content, cameraFrag)
@@ -155,6 +157,11 @@ public class CameraActivity extends Activity
   }
 
   @SuppressWarnings("unused")
+  public void onEventMainThread(CameraController.ControllerDestroyedEvent event) {
+    finish();
+  }
+
+  @SuppressWarnings("unused")
   public void onEventMainThread(CameraEngine.PictureTakenEvent event) {
     if (getIntent().getBooleanExtra(EXTRA_CONFIRM, true)) {
       confirmFrag.setImage(event.getImageContext());
@@ -194,7 +201,7 @@ public class CameraActivity extends Activity
           @Override
           public void run() {
             setResult(RESULT_OK, result);
-            finish();
+            removeFragments();
           }
         });
       }
@@ -203,11 +210,19 @@ public class CameraActivity extends Activity
           @Override
           public void run() {
             setResult(RESULT_OK);
-            finish();
+            removeFragments();
           }
         });
       }
     }
+  }
+
+  private void removeFragments() {
+    getFragmentManager()
+        .beginTransaction()
+        .remove(confirmFrag)
+        .remove(cameraFrag)
+        .commit();
   }
 
   private Uri getOutputUri() {

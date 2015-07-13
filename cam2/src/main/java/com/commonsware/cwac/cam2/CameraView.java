@@ -41,11 +41,6 @@ public class CameraView extends TextureView implements TextureView.SurfaceTextur
    */
   private Size previewSize;
 
-  /**
-   * The orientation of the preview frames, where 0 is the natural
-   * orientation of the device
-   */
-  private CameraEngine engine;
   private StateCallback stateCallback;
 
   /**
@@ -102,14 +97,6 @@ public class CameraView extends TextureView implements TextureView.SurfaceTextur
 
   public void setStateCallback(StateCallback cb) {
     stateCallback=cb;
-  }
-
-  public CameraEngine getEngine() {
-    return(engine);
-  }
-
-  public void setEngine(CameraEngine engine) {
-    this.engine=engine;
   }
 
   @Override

@@ -97,14 +97,11 @@ public class CameraController implements CameraView.StateCallback {
   /**
    * Call this from onDestroy() of an activity or fragment,
    * or from an equivalent point in time, to tear down the
-   * entire controller and engine. A fresh controller should
+   * entire controller. A fresh controller should
    * be created if you want to use the camera again in the future.
    */
   public void destroy() {
-    if (engine!=null) {
-      engine.destroy();
-    }
-
+    EventBus.getDefault().post(new ControllerDestroyedEvent(this));
     EventBus.getDefault().unregister(this);
   }
 
@@ -245,7 +242,7 @@ public class CameraController implements CameraView.StateCallback {
   public void onEventMainThread(CameraEngine.CameraDescriptorsEvent event) {
     if (event.descriptors.size()>0) {
       cameras=event.descriptors;
-      EventBus.getDefault().post(new ControllerReadyEvent(cameras.size()));
+      EventBus.getDefault().post(new ControllerReadyEvent(this, cameras.size()));
     }
     else {
       EventBus.getDefault().post(new NoSuchCameraEvent());
@@ -280,13 +277,37 @@ public class CameraController implements CameraView.StateCallback {
    */
   public static class ControllerReadyEvent {
     final private int cameraCount;
+    final private CameraController ctlr;
 
-    private ControllerReadyEvent(int cameraCount) {
+    private ControllerReadyEvent(CameraController ctlr, int cameraCount) {
       this.cameraCount=cameraCount;
+      this.ctlr=ctlr;
     }
 
     public int getNumberOfCameras() {
       return(cameraCount);
+    }
+
+    public boolean isEventForController(CameraController ctlr) {
+      return(this.ctlr==ctlr);
+    }
+  }
+
+  /**
+   * Event raised when the controller has its cameras
+   * and is ready for use. Clients should then turn
+   * around and call setCameraViews() to complete the process
+   * and start showing the first preview.
+   */
+  public static class ControllerDestroyedEvent {
+    private final CameraController ctlr;
+
+    ControllerDestroyedEvent(CameraController ctlr) {
+      this.ctlr=ctlr;
+    }
+
+    public CameraController getDestroyedController() {
+      return(ctlr);
     }
   }
 }

@@ -118,9 +118,11 @@ public class MainActivity extends Activity {
   protected void onActivityResult(int requestCode, int resultCode, Intent data) {
     switch(requestCode) {
       case REQUEST_PORTRAIT_RFC:
+/*
         wizardBody.postDelayed(new Runnable() {
           @Override
           public void run() {
+*/
             Intent i=new CameraActivity.IntentBuilder(MainActivity.this)
                 .facing(CameraSelectionCriteria.Facing.FRONT)
                 .to(new File(testRoot, "portrait-front.jpg"))
@@ -129,8 +131,8 @@ public class MainActivity extends Activity {
                 .build();
 
             startActivityForResult(i, REQUEST_PORTRAIT_FFC);
-          }
-        }, 1000);
+//          }
+//        }, 1000);
         break;
 
       case REQUEST_PORTRAIT_FFC:
@@ -139,10 +141,12 @@ public class MainActivity extends Activity {
         break;
 
       case REQUEST_LANDSCAPE_RFC:
+/*
         wizardBody.postDelayed(new Runnable() {
           @Override
           public void run() {
-            Intent i=new CameraActivity.IntentBuilder(MainActivity.this)
+*/
+            i=new CameraActivity.IntentBuilder(MainActivity.this)
                 .facing(CameraSelectionCriteria.Facing.FRONT)
                 .to(new File(testRoot, "landscape-front.jpg"))
                 .skipConfirm()
@@ -150,8 +154,10 @@ public class MainActivity extends Activity {
                 .build();
 
             startActivityForResult(i, REQUEST_LANDSCAPE_FFC);
+/*
           }
         }, 1000);
+*/
         break;
 
       case REQUEST_LANDSCAPE_FFC:

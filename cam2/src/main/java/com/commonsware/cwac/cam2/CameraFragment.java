@@ -39,7 +39,7 @@ import de.greenrobot.event.EventBus;
  */
 public class CameraFragment extends Fragment {
   private static final String ARG_OUTPUT="output";
-  private CameraController ctrl;
+  private CameraController ctlr;
   private ViewGroup previewStack;
   private FloatingActionButton fabSwitch;
   private View progress;
@@ -76,8 +76,8 @@ public class CameraFragment extends Fragment {
 
     EventBus.getDefault().register(this);
 
-    if (ctrl!=null) {
-      ctrl.start();
+    if (ctlr !=null) {
+      ctlr.start();
     }
   }
 
@@ -108,8 +108,8 @@ public class CameraFragment extends Fragment {
    */
   @Override
   public void onStop() {
-    if (ctrl!=null) {
-      ctrl.stop();
+    if (ctlr !=null) {
+      ctlr.stop();
     }
 
     EventBus.getDefault().unregister(this);
@@ -124,8 +124,8 @@ public class CameraFragment extends Fragment {
    */
   @Override
   public void onDestroy() {
-    if (ctrl!=null) {
-      ctrl.destroy();
+    if (ctlr !=null) {
+      ctlr.destroy();
     }
 
     super.onDestroy();
@@ -160,7 +160,7 @@ public class CameraFragment extends Fragment {
           b.toUri(getActivity(), output);
         }
 
-        ctrl.takePicture(b.build());
+        ctlr.takePicture(b.build());
       }
     });
 
@@ -170,7 +170,7 @@ public class CameraFragment extends Fragment {
       public void onClick(View view) {
         progress.setVisibility(View.VISIBLE);
         fabSwitch.setEnabled(false);
-        ctrl.switchCamera();
+        ctlr.switchCamera();
       }
     });
 
@@ -186,35 +186,35 @@ public class CameraFragment extends Fragment {
    * @return the CameraController this fragment delegates to
    */
   public CameraController getController() {
-    return(ctrl);
+    return(ctlr);
   }
 
   /**
    * Establishes the controller that this fragment delegates to
    *
-   * @param ctrl the controller that this fragment delegates to
+   * @param ctlr the controller that this fragment delegates to
    */
-  public void setController(CameraController ctrl) {
-    this.ctrl=ctrl;
+  public void setController(CameraController ctlr) {
+    this.ctlr=ctlr;
   }
 
   @SuppressWarnings("unused")
   public void onEventMainThread(CameraController.ControllerReadyEvent event) {
-    ArrayList<CameraView> cameraViews=new ArrayList<CameraView>();
-    CameraView cv=(CameraView)previewStack.getChildAt(0);
+    if (event.isEventForController(ctlr)) {
+      ArrayList<CameraView> cameraViews=new ArrayList<CameraView>();
+      CameraView cv=(CameraView)previewStack.getChildAt(0);
 
-    cv.setEngine(ctrl.getEngine());
-    cameraViews.add(cv);
-
-    for (int i=1;i<event.getNumberOfCameras();i++) {
-      cv=new CameraView(getActivity());
-      cv.setVisibility(View.INVISIBLE);
-      previewStack.addView(cv);
-      cv.setEngine(ctrl.getEngine());
       cameraViews.add(cv);
-    }
 
-    ctrl.setCameraViews(cameraViews);
+      for (int i=1; i < event.getNumberOfCameras(); i++) {
+        cv=new CameraView(getActivity());
+        cv.setVisibility(View.INVISIBLE);
+        previewStack.addView(cv);
+        cameraViews.add(cv);
+      }
+
+      ctlr.setCameraViews(cameraViews);
+    }
   }
 
   @SuppressWarnings("unused")

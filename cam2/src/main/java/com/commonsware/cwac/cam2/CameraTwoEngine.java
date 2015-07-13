@@ -62,6 +62,7 @@ public class CameraTwoEngine extends CameraEngine {
   final private Semaphore lock=new Semaphore(1);
   private CountDownLatch closeLatch=null;
   private MediaActionSound shutter=new MediaActionSound();
+  private List<CameraDescriptor> descriptors=null;
 
   /**
    * Standard constructor
@@ -81,16 +82,6 @@ public class CameraTwoEngine extends CameraEngine {
    * {@inheritDoc}
    */
   @Override
-  public void destroy() {
-    handlerThread.quitSafely();
-    getBus().post(new DestroyedEvent());
-    shutter.release();
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
   public CameraSession.Builder buildSession(Context ctxt, CameraDescriptor descriptor) {
     return(new SessionBuilder(ctxt, descriptor));
   }
@@ -103,38 +94,55 @@ public class CameraTwoEngine extends CameraEngine {
     getThreadPool().execute(new Runnable() {
       @Override
       public void run() {
-        List<CameraDescriptor> result=new ArrayList<CameraDescriptor>();
+        if (descriptors == null) {
+          List<CameraDescriptor> result=new ArrayList<CameraDescriptor>();
 
-        try {
-          for (String cameraId : mgr.getCameraIdList()) {
-            Descriptor camera=new Descriptor(cameraId, getScore(cameraId, criteria));
+          try {
+            for (String cameraId : mgr.getCameraIdList()) {
+              CameraCharacteristics cc=mgr.getCameraCharacteristics(cameraId);
+              Descriptor camera=new Descriptor(cameraId, cc);
 
-            result.add(camera);
+              result.add(camera);
 
-            CameraCharacteristics cc=mgr.getCameraCharacteristics(cameraId);
-            StreamConfigurationMap map=cc.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-            android.util.Size[] rawSizes=map.getOutputSizes(SurfaceTexture.class);
-            ArrayList<Size> sizes=new ArrayList<Size>();
+              StreamConfigurationMap map=cc.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+              android.util.Size[] rawSizes=map.getOutputSizes(SurfaceTexture.class);
+              ArrayList<Size> sizes=new ArrayList<Size>();
 
-            for (android.util.Size size : rawSizes) {
-              sizes.add(new Size(size.getWidth(), size.getHeight()));
+              for (android.util.Size size : rawSizes) {
+                sizes.add(new Size(size.getWidth(), size.getHeight()));
+              }
+
+              camera.setPreviewSizes(sizes);
+              camera.setPictureSizes(Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)));
+              camera.setFacingFront(cc.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_FRONT);
             }
 
-            camera.setPreviewSizes(sizes);
-            camera.setPictureSizes(Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)));
-            camera.setFacingFront(cc.get(CameraCharacteristics.LENS_FACING)==CameraCharacteristics.LENS_FACING_FRONT);
+            descriptors=result;
           }
+          catch (CameraAccessException e) {
+            getBus().post(new CameraEngine.CameraDescriptorsEvent(e));
 
-          Collections.sort(result);
-          getBus().post(new CameraEngine.CameraDescriptorsEvent(result));
-        }
-        catch (CameraAccessException e) {
-          getBus().post(new CameraEngine.CameraDescriptorsEvent(e));
-
-          if (isDebug()) {
-            Log.e(getClass().getSimpleName(), "Exception accessing camera", e);
+            if (isDebug()) {
+              Log.e(getClass().getSimpleName(), "Exception accessing camera", e);
+            }
           }
         }
+
+        List<CameraDescriptor> result=new ArrayList<CameraDescriptor>(descriptors);
+
+        Collections.sort(result, new Comparator<CameraDescriptor>() {
+          @Override
+          public int compare(CameraDescriptor descriptor, CameraDescriptor t1) {
+            Descriptor lhs=(Descriptor)descriptor;
+            Descriptor rhs=(Descriptor)t1;
+
+            // descending, so invert normal side-ness
+
+            return(Integer.compare(rhs.getScore(criteria), lhs.getScore(criteria)));
+          }
+        });
+
+        getBus().post(new CameraEngine.CameraDescriptorsEvent(result));
       }
     });
   }
@@ -154,6 +162,7 @@ public class CameraTwoEngine extends CameraEngine {
           if (!lock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
             throw new RuntimeException("Time out waiting to lock camera opening.");
           }
+
           mgr.openCamera(camera.getId(),
               new InitPreviewTransaction(session, new Surface(texture)),
               handler);
@@ -174,42 +183,38 @@ public class CameraTwoEngine extends CameraEngine {
    */
   @Override
   public void close(final CameraSession session) {
-    getThreadPool().execute(new Runnable() {
-      @Override
-      public void run() {
-        final Session s=(Session)session;
+    final Session s=(Session)session;
 
-        try {
-          lock.acquire();
+    try {
+      lock.acquire();
 
-          if (s.captureSession != null) {
-            closeLatch=new CountDownLatch(1);
-            s.captureSession.close();
-            closeLatch.await(2, TimeUnit.SECONDS);
-            s.captureSession=null;
-          }
-
-          if (s.cameraDevice != null) {
-            s.cameraDevice.close();
-            s.cameraDevice=null;
-          }
-
-          if (s.reader != null) {
-            s.reader.close();
-          }
-
-          Descriptor camera=(Descriptor)session.getDescriptor();
-
-          camera.setDevice(null);
-          getBus().post(new ClosedEvent());
-        }
-        catch (Exception e) {
-          getBus().post(new ClosedEvent(e));
-        } finally {
-          lock.release();
-        }
+      if (s.captureSession != null) {
+        closeLatch=new CountDownLatch(1);
+        s.captureSession.close();
+        closeLatch.await(2, TimeUnit.SECONDS);
+        s.captureSession=null;
       }
-    });
+
+      if (s.cameraDevice != null) {
+        s.cameraDevice.close();
+        s.cameraDevice=null;
+      }
+
+      if (s.reader != null) {
+        s.reader.close();
+      }
+
+      Descriptor camera=(Descriptor)session.getDescriptor();
+
+      camera.setDevice(null);
+      getBus().post(new ClosedEvent());
+    }
+    catch (Exception e) {
+      getBus().post(new ClosedEvent(e));
+    }
+    finally {
+      lock.release();
+    }
   }
 
   /**
@@ -242,25 +247,6 @@ public class CameraTwoEngine extends CameraEngine {
         }
       }
     });
-  }
-
-  private int getScore(String cameraId, CameraSelectionCriteria criteria)
-      throws CameraAccessException {
-    int score=10;
-
-    if (criteria != null) {
-      CameraCharacteristics info=mgr.getCameraCharacteristics(cameraId);
-      Integer facing=info.get(CameraCharacteristics.LENS_FACING);
-
-      if ((criteria.getFacing().isFront() &&
-          facing!=CameraCharacteristics.LENS_FACING_FRONT) ||
-          (!criteria.getFacing().isFront() &&
-              facing!=CameraCharacteristics.LENS_FACING_BACK)) {
-        score=0;
-      }
-    }
-
-    return(score);
   }
 
   private class InitPreviewTransaction extends CameraDevice.StateCallback {
@@ -528,11 +514,11 @@ public class CameraTwoEngine extends CameraEngine {
     private ArrayList<Size> pictureSizes;
     private ArrayList<Size> previewSizes;
     private boolean isFacingFront;
-    private final int score;
+    private final Integer facing;
 
-    private Descriptor(String cameraId, int score) {
+    private Descriptor(String cameraId, CameraCharacteristics cc) {
       this.cameraId=cameraId;
-      this.score=score;
+      facing=cc.get(CameraCharacteristics.LENS_FACING);
     }
 
     public String getId() {
@@ -545,13 +531,6 @@ public class CameraTwoEngine extends CameraEngine {
 
     private CameraDevice getDevice() {
       return (device);
-    }
-
-    @Override
-    public int compareTo(CameraDescriptor descriptor) {
-      // want descending order, not ascending
-
-      return(Integer.compare(((Descriptor)descriptor).score, score));
     }
 
     @Override
@@ -570,7 +549,7 @@ public class CameraTwoEngine extends CameraEngine {
 
     @Override
     public ArrayList<Size> getPictureSizes() {
-      return (pictureSizes);
+      return(pictureSizes);
     }
 
     private void setPictureSizes(List<android.util.Size> sizes) {
@@ -583,6 +562,21 @@ public class CameraTwoEngine extends CameraEngine {
 
     private void setFacingFront(boolean isFacingFront) {
       this.isFacingFront=isFacingFront;
+    }
+
+    private int getScore(CameraSelectionCriteria criteria) {
+      int score=10;
+
+      if (criteria != null) {
+        if ((criteria.getFacing().isFront() &&
+            facing!=CameraCharacteristics.LENS_FACING_FRONT) ||
+            (!criteria.getFacing().isFront() &&
+                facing!=CameraCharacteristics.LENS_FACING_BACK)) {
+          score=0;
+        }
+      }
+
+      return(score);
     }
   }
 

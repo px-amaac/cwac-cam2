@@ -31,13 +31,14 @@ import de.greenrobot.event.EventBus;
  * android.hardware.camera2.*).
  */
 abstract public class CameraEngine {
+  private static final int CORE_POOL_SIZE=1;
+  private static final int MAX_POOL_SIZE=Runtime.getRuntime().availableProcessors();
+  private static final int KEEP_ALIVE_SECONDS=60;
+  private static volatile CameraEngine singleton=null;
   private EventBus bus=EventBus.getDefault();
   private boolean isDebug=false;
   private LinkedBlockingQueue<Runnable> queue=new LinkedBlockingQueue<Runnable>();
   private ThreadPoolExecutor pool;
-  private static final int CORE_POOL_SIZE=1;
-  private static final int MAX_POOL_SIZE=Runtime.getRuntime().availableProcessors();
-  private static final int KEEP_ALIVE_SECONDS=60;
 
   private static class CrashableEvent {
     /**
@@ -84,14 +85,6 @@ abstract public class CameraEngine {
       super(exception);
       this.descriptors=null;
     }
-  }
-
-  /**
-   * Event raised after destroy() is called, to inform you
-   * about completion of the work.
-   */
-  public static class DestroyedEvent {
-
   }
 
   /**
@@ -176,13 +169,6 @@ abstract public class CameraEngine {
   abstract public void loadCameraDescriptors(CameraSelectionCriteria criteria);
 
   /**
-   * Call this when the engine is to be shut down permanently.
-   * A new engine instance should be created if the camera is
-   * to be used again in the future.
-   */
-  abstract public void destroy();
-
-  /**
    * Open the requested camera and show a preview on the supplied
    * surface. Subscribe to the OpenEvent to find out when this
    * work is completed.
@@ -195,7 +181,8 @@ abstract public class CameraEngine {
 
   /**
    * Close the open camera. Subscribe to the ClosedEvent to
-   * find out when this work is completed.
+   * find out when this work is completed. Note that this
+   * method may be synchronous or asynchronous.
    *
    * @param session the session for the camera of interest
    */
@@ -220,12 +207,17 @@ abstract public class CameraEngine {
    * @param ctxt any Context will do
    * @return a new CameraEngine instance
    */
-  public static CameraEngine buildInstance(Context ctxt) {
-    if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.LOLLIPOP) {
-      return(new CameraTwoEngine(ctxt));
+  synchronized public static CameraEngine buildInstance(Context ctxt) {
+    if (singleton==null) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        singleton=new CameraTwoEngine(ctxt);
+      }
+      else {
+        singleton=new ClassicCameraEngine();
+      }
     }
 
-    return(new ClassicCameraEngine());
+    return(singleton);
   }
 
   /**

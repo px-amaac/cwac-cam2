@@ -22,6 +22,7 @@ import android.util.Log;
 import com.commonsware.cwac.cam2.util.Size;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -30,6 +31,8 @@ import java.util.List;
  */
 @SuppressWarnings("deprecation")
 public class ClassicCameraEngine extends CameraEngine {
+  private List<CameraDescriptor> descriptors=null;
+
   /**
    * {@inheritDoc}
    */
@@ -45,35 +48,54 @@ public class ClassicCameraEngine extends CameraEngine {
     getThreadPool().execute(new Runnable() {
       @Override
       public void run() {
-        int count=Camera.getNumberOfCameras();
-        List<CameraDescriptor> result=new ArrayList<CameraDescriptor>();
+        if (descriptors == null) {
+          int count=Camera.getNumberOfCameras();
+          List<CameraDescriptor> result=new ArrayList<CameraDescriptor>();
+          Camera.CameraInfo info=new Camera.CameraInfo();
 
-        for (int cameraId=0; cameraId < count; cameraId++) {
-          Descriptor descriptor=new Descriptor(cameraId, getScore(cameraId, criteria));
+          for (int cameraId=0; cameraId < count; cameraId++) {
+            Camera.getCameraInfo(cameraId, info);
+            Descriptor descriptor=new Descriptor(cameraId, info);
 
-          result.add(descriptor);
+            result.add(descriptor);
 
-          Camera camera=Camera.open(descriptor.getCameraId());
-          Camera.Parameters params=camera.getParameters();
-          ArrayList<Size> sizes=new ArrayList<Size>();
+            Camera camera=Camera.open(descriptor.getCameraId());
+            Camera.Parameters params=camera.getParameters();
+            ArrayList<Size> sizes=new ArrayList<Size>();
 
-          for (Camera.Size size : params.getSupportedPreviewSizes()) {
-            sizes.add(new Size(size.width, size.height));
+            for (Camera.Size size : params.getSupportedPreviewSizes()) {
+              sizes.add(new Size(size.width, size.height));
+            }
+
+            descriptor.setPreviewSizes(sizes);
+
+            sizes=new ArrayList<Size>();
+
+            for (Camera.Size size : params.getSupportedPictureSizes()) {
+              sizes.add(new Size(size.width, size.height));
+            }
+
+            descriptor.setPictureSizes(sizes);
+            camera.release();
           }
 
-          descriptor.setPreviewSizes(sizes);
-
-          sizes=new ArrayList<Size>();
-
-          for (Camera.Size size : params.getSupportedPictureSizes()) {
-            sizes.add(new Size(size.width, size.height));
-          }
-
-          descriptor.setPictureSizes(sizes);
-          camera.release();
+          descriptors=result;
         }
 
-        Collections.sort(result);
+        List<CameraDescriptor> result=new ArrayList<CameraDescriptor>(descriptors);
+
+        Collections.sort(result, new Comparator<CameraDescriptor>() {
+          @Override
+          public int compare(CameraDescriptor descriptor, CameraDescriptor t1) {
+            Descriptor lhs=(Descriptor)descriptor;
+            Descriptor rhs=(Descriptor)t1;
+
+            // descending, so invert normal side-ness
+
+            return (Integer.compare(rhs.getScore(criteria), lhs.getScore(criteria)));
+          }
+        });
+
         getBus().post(new CameraEngine.CameraDescriptorsEvent(result));
       }
     });
@@ -84,21 +106,16 @@ public class ClassicCameraEngine extends CameraEngine {
    */
   @Override
   public void close(final CameraSession session) {
-    getThreadPool().execute(new Runnable() {
-      @Override
-      public void run() {
-        Descriptor descriptor=(Descriptor)session.getDescriptor();
-        Camera camera=descriptor.getCamera();
+      Descriptor descriptor=(Descriptor)session.getDescriptor();
+      Camera camera=descriptor.getCamera();
 
-        if (camera != null) {
-          camera.stopPreview();
-          camera.release();
-          descriptor.setCamera(null);
-        }
-
-        getBus().post(new ClosedEvent());
+      if (camera != null) {
+        camera.stopPreview();
+        camera.release();
+        descriptor.setCamera(null);
       }
-    });
+
+      getBus().post(new ClosedEvent());
   }
 
   /**
@@ -130,14 +147,6 @@ public class ClassicCameraEngine extends CameraEngine {
         }
       }
     });
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void destroy() {
-    getBus().post(new DestroyedEvent());
   }
 
   /**
@@ -176,24 +185,6 @@ public class ClassicCameraEngine extends CameraEngine {
     });
   }
 
-  private int getScore(int cameraId, CameraSelectionCriteria criteria) {
-    int score=10;
-    Camera.CameraInfo info=new Camera.CameraInfo();
-
-    if (criteria != null) {
-      Camera.getCameraInfo(cameraId, info);
-
-      if ((criteria.getFacing().isFront() &&
-          info.facing != Camera.CameraInfo.CAMERA_FACING_FRONT) ||
-          (!criteria.getFacing().isFront() &&
-              info.facing != Camera.CameraInfo.CAMERA_FACING_BACK)) {
-        score=0;
-      }
-    }
-
-    return (score);
-  }
-
   private class TakePictureTransaction implements Camera.PictureCallback {
     private final PictureTransaction xact;
     private final Context ctxt;
@@ -220,11 +211,11 @@ public class ClassicCameraEngine extends CameraEngine {
     private Camera camera;
     private ArrayList<Size> pictureSizes;
     private ArrayList<Size> previewSizes;
-    private final int score;
+    private final int facing;
 
-    private Descriptor(int cameraId, int score) {
+    private Descriptor(int cameraId, Camera.CameraInfo info) {
       this.cameraId=cameraId;
-      this.score=score;
+      this.facing=info.facing;
     }
 
     public int getCameraId() {
@@ -237,17 +228,6 @@ public class ClassicCameraEngine extends CameraEngine {
 
     private Camera getCamera() {
       return (camera);
-    }
-
-    @Override
-    public int compareTo(CameraDescriptor descriptor) {
-      // want descending order, not ascending; Integer.compare()
-      // only available on API Level 19+
-
-      int lhs=((Descriptor)descriptor).score;
-      int rhs=score;
-
-      return (lhs < rhs ? -1 : (lhs == rhs ? 0 : 1));
     }
 
     @Override
@@ -271,6 +251,21 @@ public class ClassicCameraEngine extends CameraEngine {
 
     private void setPictureSizes(ArrayList<Size> sizes) {
       pictureSizes=sizes;
+    }
+
+    private int getScore(CameraSelectionCriteria criteria) {
+      int score=10;
+
+      if (criteria != null) {
+        if ((criteria.getFacing().isFront() &&
+            facing != Camera.CameraInfo.CAMERA_FACING_FRONT) ||
+            (!criteria.getFacing().isFront() &&
+                facing != Camera.CameraInfo.CAMERA_FACING_BACK)) {
+          score=0;
+        }
+      }
+
+      return(score);
     }
   }
 

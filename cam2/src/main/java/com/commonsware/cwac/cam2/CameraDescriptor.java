@@ -25,7 +25,7 @@ import java.util.ArrayList;
  * of the public API, a descriptor should be fairly opaque, supplying
  * information about the camera capabilities, but nothing more.
  */
-public interface CameraDescriptor extends Comparable<CameraDescriptor> {
+public interface CameraDescriptor {
   /**
    * @return The possible preview sizes for the camera, in no
    * particular order

@@ -39,180 +39,195 @@ import de.greenrobot.event.EventBus;
  */
 public class CameraActivity extends FragmentActivity
   implements ConfirmationFragment.Contract {
-    /**
-     * Extra name for indicating what facing rule for the
-     * camera you wish to use. The value should be a
-     * CameraSelectionCriteria.Facing instance.
-     */
-    public static final String EXTRA_FACING="cwac_cam2_facing";
+  /**
+   * Extra name for indicating what facing rule for the
+   * camera you wish to use. The value should be a
+   * CameraSelectionCriteria.Facing instance.
+   */
+  public static final String EXTRA_FACING="cwac_cam2_facing";
 
-    /**
-     * Extra name for indicating whether extra diagnostic
-     * information should be reported, particularly for errors.
-     * Default is false.
-     */
-    public static final String EXTRA_DEBUG_ENABLED="cwac_cam2_debug";
+  /**
+   * Extra name for indicating whether extra diagnostic
+   * information should be reported, particularly for errors.
+   * Default is false.
+   */
+  public static final String EXTRA_DEBUG_ENABLED="cwac_cam2_debug";
 
-    /**
-     * Extra name for indicating whether a confirmation screen
-     * should appear after taking the picture, or whether taking
-     * the picture should immediately return said picture. Defaults
-     * to true, meaning that the user should confirm the picture.
-     */
-    public static final String EXTRA_CONFIRM="cwac_cam2_confirm";
+  /**
+   * Extra name for indicating whether a confirmation screen
+   * should appear after taking the picture, or whether taking
+   * the picture should immediately return said picture. Defaults
+   * to true, meaning that the user should confirm the picture.
+   */
+  public static final String EXTRA_CONFIRM="cwac_cam2_confirm";
 
-    private CameraFragment cameraFrag;
-    private ConfirmationFragment confirmFrag;
-    private boolean needsThumbnail=false;
+  private CameraFragment cameraFrag;
+  private ConfirmationFragment confirmFrag;
+  private boolean needsThumbnail=false;
 
-    /**
-     * Standard lifecycle method, serving as the main entry
-     * point of the activity.
-     *
-     * @param savedInstanceState the state of a previous instance
-     */
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-      super.onCreate(savedInstanceState);
+  /**
+   * Standard lifecycle method, serving as the main entry
+   * point of the activity.
+   *
+   * @param savedInstanceState the state of a previous instance
+   */
+  @Override
+  protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
 
-      Utils.validateEnvironment(this);
+    Utils.validateEnvironment(this);
 
-      getWindow().requestFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
+    getWindow().requestFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
 
-      Fragment f=getSupportFragmentManager().findFragmentById(android.R.id.content);
+    Fragment f=getSupportFragmentManager().findFragmentById(android.R.id.content);
 
-      if (f instanceof CameraFragment) {
-        cameraFrag=(CameraFragment)f;
-      }
-      else {
-        confirmFrag=(ConfirmationFragment)f;
-      }
-
-      if (cameraFrag==null) {
-        Uri output=getOutputUri();
-
-        cameraFrag=CameraFragment.newInstance(output);
-        needsThumbnail=(output==null);
-
-        CameraController ctrl=new CameraController();
-        CameraSelectionCriteria.Facing facing=
-            (CameraSelectionCriteria.Facing)getIntent().getSerializableExtra(EXTRA_FACING);
-
-        if (facing==null) {
-          facing=CameraSelectionCriteria.Facing.BACK;
-        }
-
-        CameraSelectionCriteria criteria=
-            new CameraSelectionCriteria.Builder().facing(facing).build();
-
-        ctrl.setEngine(CameraEngine.buildInstance(this), criteria);
-        ctrl.getEngine().setDebug(getIntent().getBooleanExtra(EXTRA_DEBUG_ENABLED, false));
-        cameraFrag.setController(ctrl);
-        getSupportFragmentManager()
-            .beginTransaction()
-            .add(android.R.id.content, cameraFrag)
-            .commit();
-      }
-
-      if (confirmFrag==null) {
-        confirmFrag=ConfirmationFragment.newInstance();
-        getSupportFragmentManager()
-            .beginTransaction()
-            .add(android.R.id.content, confirmFrag)
-            .commit();
-      }
-
-      if (!cameraFrag.isVisible() && !confirmFrag.isVisible()) {
-        getSupportFragmentManager()
-            .beginTransaction()
-            .hide(confirmFrag)
-            .show(cameraFrag)
-            .commit();
-      }
+    if (f instanceof CameraFragment) {
+      cameraFrag=(CameraFragment)f;
+    }
+    else {
+      confirmFrag=(ConfirmationFragment)f;
     }
 
-    /**
-     * Standard lifecycle method, for when the fragment moves into
-     * the started state. Passed along to the CameraController.
-     */
-    @Override
-    public void onStart() {
-      super.onStart();
+    if (cameraFrag==null) {
+      Uri output=getOutputUri();
 
-      EventBus.getDefault().register(this);
-    }
+      cameraFrag=CameraFragment.newInstance(output);
+      needsThumbnail=(output==null);
 
-    /**
-     * Standard lifecycle method, for when the fragment moves into
-     * the stopped state. Passed along to the CameraController.
-     */
-    @Override
-    public void onStop() {
-      EventBus.getDefault().unregister(this);
+      CameraController ctrl=new CameraController();
 
-      super.onStop();
-    }
+      cameraFrag.setController(ctrl);
 
-    @SuppressWarnings("unused")
-    public void onEventMainThread(CameraController.NoSuchCameraEvent event) {
-      finish();
-    }
+      CameraSelectionCriteria.Facing facing=
+          (CameraSelectionCriteria.Facing)getIntent().getSerializableExtra(EXTRA_FACING);
 
-    @SuppressWarnings("unused")
-    public void onEventMainThread(CameraEngine.PictureTakenEvent event) {
-      if (getIntent().getBooleanExtra(EXTRA_CONFIRM, true)) {
-        confirmFrag.setImage(event.getImageContext());
-
-        getSupportFragmentManager()
-            .beginTransaction()
-            .hide(cameraFrag)
-            .show(confirmFrag)
-            .commit();
+      if (facing==null) {
+        facing=CameraSelectionCriteria.Facing.BACK;
       }
-      else {
-        completeRequest(event.getImageContext(), true);
-      }
+
+      CameraSelectionCriteria criteria=
+          new CameraSelectionCriteria.Builder().facing(facing).build();
+
+      ctrl.setEngine(CameraEngine.buildInstance(this), criteria);
+      ctrl.getEngine().setDebug(getIntent().getBooleanExtra(EXTRA_DEBUG_ENABLED, false));
+      getSupportFragmentManager()
+          .beginTransaction()
+          .add(android.R.id.content, cameraFrag)
+          .commit();
     }
 
-    @Override
-    public void retakePicture() {
+    if (confirmFrag==null) {
+      confirmFrag=ConfirmationFragment.newInstance();
+      getSupportFragmentManager()
+          .beginTransaction()
+          .add(android.R.id.content, confirmFrag)
+          .commit();
+    }
+
+    if (!cameraFrag.isVisible() && !confirmFrag.isVisible()) {
       getSupportFragmentManager()
           .beginTransaction()
           .hide(confirmFrag)
           .show(cameraFrag)
           .commit();
     }
+  }
 
-    @Override
-    public void completeRequest(ImageContext imageContext, boolean isOK) {
-      if (!isOK) {
-        setResult(RESULT_CANCELED);
+  /**
+   * Standard lifecycle method, for when the fragment moves into
+   * the started state. Passed along to the CameraController.
+   */
+  @Override
+  public void onStart() {
+    super.onStart();
+
+    EventBus.getDefault().register(this);
+  }
+
+  /**
+   * Standard lifecycle method, for when the fragment moves into
+   * the stopped state. Passed along to the CameraController.
+   */
+  @Override
+  public void onStop() {
+    EventBus.getDefault().unregister(this);
+
+    super.onStop();
+  }
+
+  @SuppressWarnings("unused")
+  public void onEventMainThread(CameraController.NoSuchCameraEvent event) {
+    finish();
+  }
+
+  @SuppressWarnings("unused")
+  public void onEventMainThread(CameraController.ControllerDestroyedEvent event) {
+    finish();
+  }
+
+  @SuppressWarnings("unused")
+  public void onEventMainThread(CameraEngine.PictureTakenEvent event) {
+    if (getIntent().getBooleanExtra(EXTRA_CONFIRM, true)) {
+      confirmFrag.setImage(event.getImageContext());
+
+      getSupportFragmentManager()
+          .beginTransaction()
+          .hide(cameraFrag)
+          .show(confirmFrag)
+          .commit();
+    }
+    else {
+      completeRequest(event.getImageContext(), true);
+    }
+  }
+
+  @Override
+  public void retakePicture() {
+    getSupportFragmentManager()
+        .beginTransaction()
+        .hide(confirmFrag)
+        .show(cameraFrag)
+        .commit();
+  }
+
+  @Override
+  public void completeRequest(ImageContext imageContext, boolean isOK) {
+    if (!isOK) {
+      setResult(RESULT_CANCELED);
+    }
+    else {
+      if (needsThumbnail) {
+        final Intent result=new Intent();
+
+        result.putExtra("data", imageContext.buildResultThumbnail());
+
+        findViewById(android.R.id.content).post(new Runnable() {
+          @Override
+          public void run() {
+            setResult(RESULT_OK, result);
+            removeFragments();
+          }
+        });
       }
       else {
-        if (needsThumbnail) {
-          final Intent result=new Intent();
-
-          result.putExtra("data", imageContext.buildResultThumbnail());
-
-          findViewById(android.R.id.content).post(new Runnable() {
-            @Override
-            public void run() {
-              setResult(RESULT_OK, result);
-              finish();
-            }
-          });
-        }
-        else {
-          findViewById(android.R.id.content).post(new Runnable() {
-            @Override
-            public void run() {
-              setResult(RESULT_OK);
-              finish();
-            }
-          });
-        }
+        findViewById(android.R.id.content).post(new Runnable() {
+          @Override
+          public void run() {
+            setResult(RESULT_OK);
+            removeFragments();
+          }
+        });
       }
     }
+  }
+
+  private void removeFragments() {
+    getSupportFragmentManager()
+        .beginTransaction()
+        .remove(confirmFrag)
+        .remove(cameraFrag)
+        .commit();
+  }
 
   private Uri getOutputUri() {
     Uri output=null;
