@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+  xmlns:android="http://schemas.android.com/apk/res/android">
+  <SwitchPreference
+    android:key="ffc"
+    android:title="@string/title_ffc"/>
+  <SwitchPreference
+    android:key="file"
+    android:title="@string/title_file"
+    android:summary="@string/summary_file"/>
+  <SwitchPreference
+    android:key="confirm"
+    android:title="@string/title_confirm"/>
+  <SwitchPreference
+    android:key="debug"
+    android:title="@string/title_debug"/>
+
+</PreferenceScreen>

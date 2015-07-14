@@ -1,0 +1,23 @@
+apply plugin: 'com.android.application'
+
+repositories {
+    maven {
+        url "https://repo.commonsware.com.s3.amazonaws.com"
+    }
+}
+
+dependencies {
+    compile 'com.davemorrissey.labs:subsampling-scale-image-view:3.1.4'
+    compile project(':cam2')
+    // releaseCompile 'com.commonsware.cwac:cam2:0.6.+'
+}
+
+android {
+    compileSdkVersion 22
+    buildToolsVersion "22.0.1"
+
+    defaultConfig {
+        minSdkVersion 15
+        targetSdkVersion 22
+    }
+}
