@@ -213,7 +213,7 @@ public class CameraActivity extends FragmentActivity
         findViewById(android.R.id.content).post(new Runnable() {
           @Override
           public void run() {
-            setResult(RESULT_OK);
+            setResult(RESULT_OK, new Intent().setData(getOutputUri()));
             removeFragments();
           }
         });
