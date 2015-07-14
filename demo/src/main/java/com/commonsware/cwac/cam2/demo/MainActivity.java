@@ -118,21 +118,14 @@ public class MainActivity extends Activity {
   protected void onActivityResult(int requestCode, int resultCode, Intent data) {
     switch(requestCode) {
       case REQUEST_PORTRAIT_RFC:
-/*
-        wizardBody.postDelayed(new Runnable() {
-          @Override
-          public void run() {
-*/
-            Intent i=new CameraActivity.IntentBuilder(MainActivity.this)
-                .facing(CameraSelectionCriteria.Facing.FRONT)
-                .to(new File(testRoot, "portrait-front.jpg"))
-                .skipConfirm()
-                .debug()
-                .build();
+        Intent i=new CameraActivity.IntentBuilder(MainActivity.this)
+            .facing(CameraSelectionCriteria.Facing.FRONT)
+            .to(new File(testRoot, "portrait-front.jpg"))
+            .skipConfirm()
+            .debug()
+            .build();
 
-            startActivityForResult(i, REQUEST_PORTRAIT_FFC);
-//          }
-//        }, 1000);
+        startActivityForResult(i, REQUEST_PORTRAIT_FFC);
         break;
 
       case REQUEST_PORTRAIT_FFC:
@@ -141,23 +134,14 @@ public class MainActivity extends Activity {
         break;
 
       case REQUEST_LANDSCAPE_RFC:
-/*
-        wizardBody.postDelayed(new Runnable() {
-          @Override
-          public void run() {
-*/
-            i=new CameraActivity.IntentBuilder(MainActivity.this)
-                .facing(CameraSelectionCriteria.Facing.FRONT)
-                .to(new File(testRoot, "landscape-front.jpg"))
-                .skipConfirm()
-                .debug()
-                .build();
+        i=new CameraActivity.IntentBuilder(MainActivity.this)
+            .facing(CameraSelectionCriteria.Facing.FRONT)
+            .to(new File(testRoot, "landscape-front.jpg"))
+            .skipConfirm()
+            .debug()
+            .build();
 
-            startActivityForResult(i, REQUEST_LANDSCAPE_FFC);
-/*
-          }
-        }, 1000);
-*/
+        startActivityForResult(i, REQUEST_LANDSCAPE_FFC);
         break;
 
       case REQUEST_LANDSCAPE_FFC:
