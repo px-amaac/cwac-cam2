@@ -88,7 +88,7 @@ public class ImageContext {
     // on a background thread
 
     if (thumbnail==null) {
-      thumbnail=createThumbnail(200000.0d, null);
+      thumbnail=createThumbnail(200000.0d, null, 2000000);
     }
 
     return(thumbnail);
@@ -97,22 +97,35 @@ public class ImageContext {
   public Bitmap buildResultThumbnail() {
     // TODO: move this onto background thread
 
-    return(createThumbnail(100000.0d, null));
+    return(createThumbnail(100000.0d, null, 950000));
   }
 
-  private Bitmap createThumbnail(double maxLength, Bitmap inBitmap) {
-    double ratio=(double)jpeg.length / maxLength;
-    BitmapFactory.Options opts=new BitmapFactory.Options();
+  private Bitmap createThumbnail(double jpegLengthGuess, Bitmap inBitmap, int limit) {
+    double ratio=(double)jpeg.length / jpegLengthGuess;
+    int inSampleSize;
 
     if (ratio > 1.0d) {
-      opts.inSampleSize=1 << (int)(Math.ceil(Math.log(ratio) / LOG_2));
+      inSampleSize=1 << (int)(Math.ceil(Math.log(ratio) / LOG_2));
     } else {
-      opts.inSampleSize=1;
+      inSampleSize=1;
     }
 
+    return(createThumbnail(inSampleSize, inBitmap, limit));
+  }
+
+  private Bitmap createThumbnail(int inSampleSize, Bitmap inBitmap, int limit) {
+    BitmapFactory.Options opts=new BitmapFactory.Options();
+
+    opts.inSampleSize=inSampleSize;
     opts.inBitmap=inBitmap;
 
-    return(BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length, opts));
+    Bitmap result=BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length, opts);
+
+    if (result.getByteCount()>limit) {
+      return(createThumbnail(inSampleSize+1, inBitmap, limit));
+    }
+
+    return(result);
   }
 
   private void updateBitmap() {
