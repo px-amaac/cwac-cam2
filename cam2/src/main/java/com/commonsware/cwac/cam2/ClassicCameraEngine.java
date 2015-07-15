@@ -92,7 +92,12 @@ public class ClassicCameraEngine extends CameraEngine {
 
             // descending, so invert normal side-ness
 
-            return (Integer.compare(rhs.getScore(criteria), lhs.getScore(criteria)));
+            int lhScore=rhs.getScore(criteria);
+            int rhScore=lhs.getScore(criteria);
+
+            // from Integer.compare(), which is new to API Level 19
+
+            return(lhScore < rhScore ? -1 : (lhScore == rhScore ? 0 : 1));
           }
         });
 
