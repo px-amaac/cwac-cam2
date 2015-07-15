@@ -23,6 +23,8 @@ import android.os.Bundle;
 public class MainActivity extends Activity
     implements PlaygroundFragment.Contract {
   private static final int REQUEST_CAMERA=1337;
+  private static final String TAG_PLAYGROUND=PlaygroundFragment.class.getCanonicalName();
+  private static final String TAG_RESULT=ResultFragment.class.getCanonicalName();
   private PlaygroundFragment playground=null;
   private ResultFragment result=null;
 
@@ -30,22 +32,14 @@ public class MainActivity extends Activity
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
 
-    Fragment f=getFragmentManager().findFragmentById(android.R.id.content);
-
-    if (f!=null) {
-      if (f instanceof PlaygroundFragment) {
-        playground=(PlaygroundFragment)f;
-      }
-      else {
-        result=(ResultFragment)f;
-      }
-    }
+    playground=(PlaygroundFragment)getFragmentManager().findFragmentByTag(TAG_PLAYGROUND);
+    result=(ResultFragment)getFragmentManager().findFragmentByTag(TAG_RESULT);
 
     if (playground==null) {
       playground=new PlaygroundFragment();
       getFragmentManager()
           .beginTransaction()
-          .add(android.R.id.content, playground)
+          .add(android.R.id.content, playground, TAG_PLAYGROUND)
           .commit();
     }
 
@@ -53,7 +47,7 @@ public class MainActivity extends Activity
       result=ResultFragment.newInstance();
       getFragmentManager()
           .beginTransaction()
-          .add(android.R.id.content, result)
+          .add(android.R.id.content, result, TAG_RESULT)
           .hide(result)
           .commit();
     }
