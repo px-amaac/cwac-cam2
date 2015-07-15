@@ -30,7 +30,7 @@ import android.view.animation.OvershootInterpolator;
 import android.widget.ImageView;
 import com.github.clans.fab.FloatingActionButton;
 import com.github.clans.fab.FloatingActionMenu;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import de.greenrobot.event.EventBus;
 
 /**
@@ -67,8 +67,7 @@ public class CameraFragment extends Fragment {
   }
 
   /**
-   * Standard lifecycle method, for when the fragment moves into
-   * the started state. Passed along to the CameraController.
+   * Standard lifecycle method, passed along to the CameraController.
    */
   @Override
   public void onStart() {
@@ -76,7 +75,7 @@ public class CameraFragment extends Fragment {
 
     EventBus.getDefault().register(this);
 
-    if (ctlr !=null) {
+    if (ctlr!=null) {
       ctlr.start();
     }
   }
@@ -95,7 +94,8 @@ public class CameraFragment extends Fragment {
 
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
         ab.setDisplayHomeAsUpEnabled(false);
-      } else {
+      }
+      else {
         ab.setDisplayShowHomeEnabled(false);
         ab.setHomeButtonEnabled(false);
       }
@@ -108,7 +108,7 @@ public class CameraFragment extends Fragment {
    */
   @Override
   public void onStop() {
-    if (ctlr !=null) {
+    if (ctlr!=null) {
       ctlr.stop();
     }
 
@@ -124,7 +124,7 @@ public class CameraFragment extends Fragment {
    */
   @Override
   public void onDestroy() {
-    if (ctlr !=null) {
+    if (ctlr!=null) {
       ctlr.destroy();
     }
 
@@ -179,6 +179,10 @@ public class CameraFragment extends Fragment {
     onHiddenChanged(false); // hack, since this does not get
                             // called on initial display
 
+    if (ctlr!=null && ctlr.getNumberOfCameras()>0) {
+      prepController();
+    }
+
     return(v);
   }
 
@@ -201,19 +205,7 @@ public class CameraFragment extends Fragment {
   @SuppressWarnings("unused")
   public void onEventMainThread(CameraController.ControllerReadyEvent event) {
     if (event.isEventForController(ctlr)) {
-      ArrayList<CameraView> cameraViews=new ArrayList<CameraView>();
-      CameraView cv=(CameraView)previewStack.getChildAt(0);
-
-      cameraViews.add(cv);
-
-      for (int i=1; i < event.getNumberOfCameras(); i++) {
-        cv=new CameraView(getActivity());
-        cv.setVisibility(View.INVISIBLE);
-        previewStack.addView(cv);
-        cameraViews.add(cv);
-      }
-
-      ctlr.setCameraViews(cameraViews);
+      prepController();
     }
   }
 
@@ -221,6 +213,22 @@ public class CameraFragment extends Fragment {
   public void onEventMainThread(CameraEngine.OpenedEvent event) {
     progress.setVisibility(View.GONE);
     fabSwitch.setEnabled(true);
+  }
+
+  private void prepController() {
+    LinkedList<CameraView> cameraViews=new LinkedList<CameraView>();
+    CameraView cv=(CameraView)previewStack.getChildAt(0);
+
+    cameraViews.add(cv);
+
+    for (int i=1; i < ctlr.getNumberOfCameras(); i++) {
+      cv=new CameraView(getActivity());
+      cv.setVisibility(View.INVISIBLE);
+      previewStack.addView(cv);
+      cameraViews.add(cv);
+    }
+
+    ctlr.setCameraViews(cameraViews);
   }
 
   // based on https://goo.gl/3IUM8K

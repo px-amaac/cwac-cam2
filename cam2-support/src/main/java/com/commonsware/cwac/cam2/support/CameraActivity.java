@@ -61,6 +61,8 @@ public class CameraActivity extends FragmentActivity
    */
   public static final String EXTRA_CONFIRM="cwac_cam2_confirm";
 
+  private static final String TAG_CAMERA=CameraFragment.class.getCanonicalName();
+  private static final String TAG_CONFIRM=ConfirmationFragment.class.getCanonicalName();
   private CameraFragment cameraFrag;
   private ConfirmationFragment confirmFrag;
   private boolean needsThumbnail=false;
@@ -79,20 +81,15 @@ public class CameraActivity extends FragmentActivity
 
     getWindow().requestFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
 
-    Fragment f=getSupportFragmentManager().findFragmentById(android.R.id.content);
+    cameraFrag=(CameraFragment)getSupportFragmentManager().findFragmentByTag(TAG_CAMERA);
+    confirmFrag=(ConfirmationFragment)getSupportFragmentManager().findFragmentByTag(TAG_CONFIRM);
 
-    if (f instanceof CameraFragment) {
-      cameraFrag=(CameraFragment)f;
-    }
-    else {
-      confirmFrag=(ConfirmationFragment)f;
-    }
+    Uri output=getOutputUri();
+
+    needsThumbnail=(output==null);
 
     if (cameraFrag==null) {
-      Uri output=getOutputUri();
-
       cameraFrag=CameraFragment.newInstance(output);
-      needsThumbnail=(output==null);
 
       CameraController ctrl=new CameraController();
 
@@ -112,7 +109,7 @@ public class CameraActivity extends FragmentActivity
       ctrl.getEngine().setDebug(getIntent().getBooleanExtra(EXTRA_DEBUG_ENABLED, false));
       getSupportFragmentManager()
           .beginTransaction()
-          .add(android.R.id.content, cameraFrag)
+          .add(android.R.id.content, cameraFrag, TAG_CAMERA)
           .commit();
     }
 
@@ -120,7 +117,7 @@ public class CameraActivity extends FragmentActivity
       confirmFrag=ConfirmationFragment.newInstance();
       getSupportFragmentManager()
           .beginTransaction()
-          .add(android.R.id.content, confirmFrag)
+          .add(android.R.id.content, confirmFrag, TAG_CONFIRM)
           .commit();
     }
 

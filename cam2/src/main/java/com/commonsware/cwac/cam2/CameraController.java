@@ -25,6 +25,7 @@ import com.commonsware.cwac.cam2.util.Size;
 import com.commonsware.cwac.cam2.util.Utils;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Queue;
 import de.greenrobot.event.EventBus;
 
 /**
@@ -38,7 +39,9 @@ public class CameraController implements CameraView.StateCallback {
   private int currentCamera=0;
   private final HashMap<CameraDescriptor, CameraView> previews=
       new HashMap<CameraDescriptor, CameraView>();
+  private Queue<CameraView> availablePreviews=null;
   private boolean switchPending=false;
+  private boolean isAttached=false;
 
   /**
    * @return the engine being used by this fragment to access
@@ -62,6 +65,10 @@ public class CameraController implements CameraView.StateCallback {
     EventBus.getDefault().register(this);
 
     engine.loadCameraDescriptors(criteria);
+  }
+
+  public int getNumberOfCameras() {
+    return(cameras==null ? 0 : cameras.size());
   }
 
   /**
@@ -125,10 +132,12 @@ public class CameraController implements CameraView.StateCallback {
    *
    * @param cameraViews a list of CameraViews
    */
-  public void setCameraViews(List<CameraView> cameraViews) {
-    for (int i=0; i < cameras.size(); i++) {
-      previews.put(cameras.get(i), cameraViews.get(i));
-      cameraViews.get(i).setStateCallback(this);
+  public void setCameraViews(Queue<CameraView> cameraViews) {
+    availablePreviews=cameraViews;
+    previews.clear();
+
+    for (CameraView cv : cameraViews) {
+      cv.setStateCallback(this);
     }
 
     open(); // in case visible CameraView is already ready
@@ -172,7 +181,14 @@ public class CameraController implements CameraView.StateCallback {
   }
 
   private CameraView getPreview(CameraDescriptor camera) {
-    return(previews.get(camera));
+    CameraView result=previews.get(camera);
+
+    if (result==null) {
+      result=availablePreviews.remove();
+      previews.put(camera, result);
+    }
+
+    return(result);
   }
 
   private int getNextCameraIndex() {
@@ -212,7 +228,7 @@ public class CameraController implements CameraView.StateCallback {
         }
       }
 
-      previewSize=(smallestBiggerThanPreview==null
+      previewSize=(smallestBiggerThanPreview == null
           ? largest
           : smallestBiggerThanPreview);
 
@@ -222,7 +238,7 @@ public class CameraController implements CameraView.StateCallback {
     SurfaceTexture texture=cv.getSurfaceTexture();
 
     if (previewSize!=null && texture!=null) {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+      if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.JELLY_BEAN_MR1) {
         texture.setDefaultBufferSize(cv.getWidth(), cv.getHeight());
       }
 

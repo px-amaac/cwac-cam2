@@ -143,7 +143,7 @@ public class CameraView extends TextureView implements TextureView.SurfaceTextur
 
   @Override
   public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
-    if (stateCallback !=null) {
+    if (stateCallback!=null) {
       stateCallback.onReady(this);
     }
   }
@@ -155,7 +155,7 @@ public class CameraView extends TextureView implements TextureView.SurfaceTextur
 
   @Override
   public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
-    if (stateCallback !=null) {
+    if (stateCallback!=null) {
       stateCallback.onDestroyed(this);
     }
 
