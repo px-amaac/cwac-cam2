@@ -84,14 +84,14 @@ public class ConfirmationFragment extends Fragment {
 
       ab.setBackgroundDrawable(getActivity()
           .getResources()
-          .getDrawable(com.commonsware.cwac.cam2.R.drawable.cwac_cam2_action_bar_bg_translucent));
+          .getDrawable(R.drawable.cwac_cam2_action_bar_bg_translucent));
       ab.setTitle("");
 
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
         ab.setDisplayHomeAsUpEnabled(true);
-        ab.setHomeAsUpIndicator(com.commonsware.cwac.cam2.R.drawable.cwac_cam2_ic_close_white);
+        ab.setHomeAsUpIndicator(R.drawable.cwac_cam2_ic_close_white);
       } else {
-        ab.setIcon(com.commonsware.cwac.cam2.R.drawable.cwac_cam2_ic_close_white);
+        ab.setIcon(R.drawable.cwac_cam2_ic_close_white);
         ab.setDisplayShowHomeEnabled(true);
         ab.setHomeButtonEnabled(true);
       }
@@ -100,7 +100,7 @@ public class ConfirmationFragment extends Fragment {
 
   @Override
   public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
-    inflater.inflate(com.commonsware.cwac.cam2.R.menu.cwac_cam2_confirm, menu);
+    inflater.inflate(R.menu.cwac_cam2_confirm, menu);
   }
 
   @Override
@@ -108,10 +108,10 @@ public class ConfirmationFragment extends Fragment {
     if (item.getItemId()==android.R.id.home) {
       getContract().completeRequest(imageContext, true);
     }
-    else if (item.getItemId()== com.commonsware.cwac.cam2.R.id.cwac_cam2_ok) {
+    else if (item.getItemId()== R.id.cwac_cam2_ok) {
       getContract().completeRequest(imageContext, true);
     }
-    else if (item.getItemId()== com.commonsware.cwac.cam2.R.id.cwac_cam2_retry) {
+    else if (item.getItemId()== R.id.cwac_cam2_retry) {
       getContract().retakePicture();
     }
     else {
