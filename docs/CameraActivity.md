@@ -20,13 +20,12 @@ configuration methods on `CameraActivity.IntentBuilder`, the corresponding
 extra names (defined as constants on `CameraActivity`), their default values,
 and what their behavior is:
 
-| `IntentBuilder` Method | Extra Key | Default Value | Purpose |
-|:----------------------:|:---------:|:-------------:|---------|
-
-
-## Supported Extras
-
-TBD
+| `IntentBuilder` Method | Extra Key             | Data Type                                     | Purpose |
+|:----------------------:|:---------------------:|:---------------------------------------------:|---------|
+| `debug()`              | `EXTRA_DEBUG_ENABLED`     | `boolean`                                 | Indicate if extra debugging information should be dumped to LogCat (default is `false`) |
+| `facing()`             | `EXTRA_FACING`            | `CameraSelectionCriteria.Facing`          | Indicate the preferred camera to start with (`BACK` or `FRONT`, default is `BACK`) |
+| `skipConfirm()`        | `EXTRA_CONFIRM`           | `boolean`                                 | Indicate if the user should be presented with a preview of the image and needs to accept it before proceeding (default is to show the confirmirmation screen) |
+| `to()`                 | `MediaStore.EXTRA_OUTPUT` | `Uri` (though `to()` also accepts `File`) | Destination for picture to be written, where `null` means to return a thumbnail via the `data` extra (default is `null`) |
 
 ## Output
 
