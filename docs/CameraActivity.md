@@ -7,31 +7,22 @@ gives you the same "API" as you get with the Android SDK's
 
 ## Getting the Intent
 
-To get the `Intent` to use, in place of your `ACTION_IMAGE_CAPTURE`
-`Intent`, call the static `buildLaunchIntent()` method on the
-`CameraActivity` class. There are two flavors of this method, both
-taking a `Context` as as parameter.
+The simplest way to craft the right `Intent` to use is to create
+a `CameraActivity.IntentBuilder`, call whatever configuration methods
+that you want on that builder, and have it `build()` you an `Intent`.
+That `Intent` can be used with `startActivityForResult()`, just as you
+might have used it with an `ACTION_IMAGE_CAPTURE` `Intent`.
 
-The single-parameter version of the method will return an `Intent`
-object to you. That `Intent` will either be:
+Under the covers, `CameraActivity.IntentBuilder` is simply packaging a
+series of extras on the `Intent`, so you can always put those extras
+on yourself if you so choose. The following table lists the available
+configuration methods on `CameraActivity.IntentBuilder`, the corresponding
+extra names (defined as constants on `CameraActivity`), their default values,
+and what their behavior is:
 
-- Pointing to `CameraActivity`, or
+| `IntentBuilder` Method | Extra Key | Default Value | Purpose |
+|:----------------------:|:---------:|:-------------:|---------|
 
-- Pointing to `ACTION_IMAGE_CAPTURE`, if your app or the device that
-it is running on are incompatible with `CameraActivity`
-
-You can then add extras on the `Intent` and use it with `startActivityForResult()`,
-just as you would use the regular `ACTION_IMAGE_CAPTURE` `Intent`:
-
-```java
-startActivity(CameraActivity.buildLaunchIntent(this));
-```
-
-The two-parameter version of this method takes a `boolean` as the
-second parameter. `false` indicates that you do not want an
-`ACTION_IMAGE_CAPTURE` `Intent`, and instead you want `buildLaunchIntent()`
-to throw an exception if the app or device is incompatible with
-`CameraActivity`.
 
 ## Supported Extras
 
@@ -59,3 +50,6 @@ For example, the following manifest entry sets the theme:
       android:theme="@style/AppTheme"/>
 ```
 
+Note that `CameraActivity` does not support being exported. Do not add
+an `<intent-filter>` to this activity or otherwise mark it as being
+exported.
