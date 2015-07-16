@@ -27,6 +27,19 @@ and what their behavior is:
 | `skipConfirm()`        | `EXTRA_CONFIRM`           | `boolean`                                 | Indicate if the user should be presented with a preview of the image and needs to accept it before proceeding (default is to show the confirmirmation screen) |
 | `to()`                 | `MediaStore.EXTRA_OUTPUT` | `Uri` (though `to()` also accepts `File`) | Destination for picture to be written, where `null` means to return a thumbnail via the `data` extra (default is `null`) |
 
+## Example Use of `IntentBuilder`
+
+```java
+  Intent i=new CameraActivity.IntentBuilder(MainActivity.this)
+      .facing(CameraSelectionCriteria.Facing.FRONT)
+      .to(new File(testRoot, "portrait-front.jpg"))
+      .skipConfirm()
+      .debug()
+      .build();
+
+  startActivityForResult(i, REQUEST_PORTRAIT_FFC);
+```
+
 ## Output
 
 If you provide the destination `Uri` via `to()`, the image will be written there, and the `Uri` of the `Intent`
