@@ -20,8 +20,8 @@ configuration methods on `CameraActivity.IntentBuilder`, the corresponding
 extra names (defined as constants on `CameraActivity`), their default values,
 and what their behavior is:
 
-| `IntentBuilder` Method | Extra Key             | Data Type                                     | Purpose |
-|:----------------------:|:---------------------:|:---------------------------------------------:|---------|
+| `IntentBuilder` Method | Extra Key                 | Data Type                                 | Purpose |
+|:----------------------:|:-------------------------:|:-----------------------------------------:|---------|
 | `debug()`              | `EXTRA_DEBUG_ENABLED`     | `boolean`                                 | Indicate if extra debugging information should be dumped to LogCat (default is `false`) |
 | `facing()`             | `EXTRA_FACING`            | `CameraSelectionCriteria.Facing`          | Indicate the preferred camera to start with (`BACK` or `FRONT`, default is `BACK`) |
 | `skipConfirm()`        | `EXTRA_CONFIRM`           | `boolean`                                 | Indicate if the user should be presented with a preview of the image and needs to accept it before proceeding (default is to show the confirmirmation screen) |
@@ -29,7 +29,12 @@ and what their behavior is:
 
 ## Output
 
-TBD
+If you provide the destination `Uri` via `to()`, the image will be written there, and the `Uri` of the `Intent`
+delivered to `onActivityResult()` will be your requested `Uri`.
+
+If you do not provide the destination `Uri`, a thumbnail image will be supplied via the `data` extra on the `Intent` delivered to `onActivityResult()`.
+
+And, of course, the `resultCode` passed to `onActivityResult()` will indicate if the user took a picture or abandoned the operation.
 
 ## Configuring the Manifest Entry
 
