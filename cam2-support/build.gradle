@@ -7,8 +7,7 @@ repositories {
 }
 
 dependencies {
-    debugCompile project(':cam2')
-    releaseCompile 'com.commonsware.cwac:cam2:0.1.+'
+    compile 'com.commonsware.cwac:cam2:0.1.+'
     compile 'com.android.support:support-v13:22.1.1'
 }
 
