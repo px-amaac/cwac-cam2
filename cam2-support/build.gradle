@@ -1,4 +1,4 @@
-apply plugin: 'com.android.application'
+apply plugin: 'com.android.library'
 
 repositories {
     maven {
@@ -7,9 +7,8 @@ repositories {
 }
 
 dependencies {
-    // debugCompile project(':cam2')
-    compile project(':cam2')
-    // releaseCompile 'com.commonsware.cwac:cam2:0.6.+'
+    debugCompile project(':cam2')
+    releaseCompile 'com.commonsware.cwac:cam2:0.1.+'
     compile 'com.android.support:support-v13:22.1.1'
 }
 
@@ -20,5 +19,20 @@ android {
     defaultConfig {
         minSdkVersion 15
         targetSdkVersion 22
+    }
+}
+
+android.libraryVariants.all { variant ->
+    task("generate${variant.name.capitalize()}Javadoc", type: Javadoc) {
+        title = "$name $version API"
+        // description = ''
+        source = variant.javaCompile.source
+        classpath = files(variant.javaCompile.classpath.files, project.android.getBootClasspath())
+        options {
+            links "http://docs.oracle.com/javase/7/docs/api/"
+            linksOffline "http://d.android.com/reference","${android.sdkDirectory}/docs/reference"
+        }
+        exclude '**/BuildConfig.java'
+        exclude '**/R.java'
     }
 }
