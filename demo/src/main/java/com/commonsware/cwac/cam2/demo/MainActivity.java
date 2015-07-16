@@ -100,7 +100,10 @@ public class MainActivity extends Activity {
 
   @Override
   protected void onDestroy() {
-    delete(testRoot);
+    if (!isChangingConfigurations()) {
+      delete(testRoot);
+    }
+
     testZip.delete();
 
     super.onDestroy();
